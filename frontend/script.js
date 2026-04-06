@@ -301,7 +301,7 @@ function highlightCard(id) {
 function openAddForm() {
   editingId = null;
   document.getElementById('form-title').textContent = 'Add Property';
-  document.getElementById('form-mls').value = '';
+  document.getElementById('form-rmls').value = '';
   document.getElementById('form-address').value = '';
   document.getElementById('form-status').value = 'interested';
   document.getElementById('form-url').value = '';
@@ -427,22 +427,30 @@ function bindEvents() {
   document.getElementById('logout-btn').addEventListener('click', logout);
   document.getElementById('add-btn').addEventListener('click', openAddForm);
 
-  document.getElementById('mls-btn').addEventListener('click', async () => {
-    const mlsId = document.getElementById('form-mls').value.trim();
-    if (!mlsId) return;
-    const btn = document.getElementById('mls-btn');
+  document.getElementById('rmls-btn').addEventListener('click', async () => {
+    const rmlsUrl = document.getElementById('form-rmls').value.trim();
+    if (!rmlsUrl) return;
+    const btn = document.getElementById('rmls-btn');
     btn.textContent = '...';
     btn.disabled = true;
     try {
-      const res = await fetch(`${CONFIG.apiUrl}/api/mls/${encodeURIComponent(mlsId)}`);
+      const res = await fetch(`${CONFIG.apiUrl}/api/rmls-lookup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: rmlsUrl }),
+      });
       if (!res.ok) {
-        alert('MLS listing not found. Try entering the address manually.');
+        alert('Could not fetch RMLS listing. Try entering the address manually.');
         return;
       }
       const info = await res.json();
-      if (info.address) document.getElementById('form-address').value = info.address;
-      if (info.listingUrl) document.getElementById('form-url').value = info.listingUrl;
-      if (info.lat && info.lng) setPreviewMarker(info.lat, info.lng);
+      if (info.address) {
+        document.getElementById('form-address').value = info.address;
+        // Auto-geocode the address
+        const geo = await geocodeAddress(info.address);
+        if (geo) setPreviewMarker(geo.lat, geo.lng);
+      }
+      if (info.sourceUrl) document.getElementById('form-url').value = info.sourceUrl;
       // Build notes from metadata
       const parts = [];
       if (info.price) parts.push(`$${info.price.toLocaleString()}`);
@@ -450,13 +458,18 @@ function bindEvents() {
       if (info.baths) parts.push(`${info.baths} bath`);
       if (info.sqft) parts.push(`${info.sqft.toLocaleString()} sqft`);
       if (info.yearBuilt) parts.push(`built ${info.yearBuilt}`);
-      if (info.lotSize) parts.push(`${info.lotSize.toLocaleString()} sqft lot`);
+      if (info.lotAcres) parts.push(`${info.lotAcres} acres`);
+      if (info.garage) parts.push(info.garage + ' garage');
+      if (info.hoaMonthly) parts.push(`$${info.hoaMonthly}/mo HOA`);
+      if (info.propertyType) parts.push(info.propertyType);
+      if (info.stories) parts.push(`${info.stories}-story`);
+      if (info.mlsId) parts.push(`MLS# ${info.mlsId}`);
       if (parts.length > 0) {
         const existing = document.getElementById('form-notes').value;
         document.getElementById('form-notes').value = parts.join(' | ') + (existing ? '\n' + existing : '');
       }
     } catch (err) {
-      alert('MLS lookup failed: ' + err.message);
+      alert('RMLS lookup failed: ' + err.message);
     } finally {
       btn.textContent = 'Lookup';
       btn.disabled = false;

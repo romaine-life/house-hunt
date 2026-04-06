@@ -88,66 +88,85 @@ export function createHouseHuntRoutes({ requireAuth, propertiesContainerClient, 
     return { conflict: false, updatedAt: props.lastModified.toISOString() };
   }
 
-  // ── MLS lookup (public) ──────────────────────────────────────────
+  // ── RMLS listing scraper (public) ────────────────────────────────
 
-  router.get('/api/mls/:id', async (req, res) => {
-    const mlsId = req.params.id.replace(/[^0-9]/g, '');
-    if (!mlsId) return res.status(400).json({ error: 'MLS ID required' });
+  router.post('/api/rmls-lookup', async (req, res) => {
+    const { url } = req.body;
+    if (!url || !url.includes('rmlsweb.com')) {
+      return res.status(400).json({ error: 'Valid RMLS URL required' });
+    }
 
     try {
-      // Redfin's location search accepts MLS numbers
-      const searchUrl = `https://www.redfin.com/stingray/do/query-location?location=${encodeURIComponent('MLS# ' + mlsId)}&v=2`;
-      const searchRes = await fetch(searchUrl, {
+      const pageRes = await fetch(url, {
         headers: { 'User-Agent': 'Mozilla/5.0 (house-hunt property tracker)' },
       });
-      const searchText = await searchRes.text();
-      // Redfin prefixes JSON with "{}&&" to prevent XSSI
-      const searchJson = JSON.parse(searchText.replace(/^{}&&/, ''));
-
-      const match = searchJson?.payload?.exactMatch;
-      if (!match) {
-        return res.status(404).json({ error: 'MLS listing not found' });
+      if (!pageRes.ok) {
+        return res.status(404).json({ error: 'Could not fetch RMLS listing' });
       }
+      const html = await pageRes.text();
 
-      const result = {
-        address: match.name || null,
-        lat: match.lat || null,
-        lng: match.lng || null,
-        listingUrl: match.url ? `https://www.redfin.com${match.url}` : null,
+      // Extract data from the RMLS public report HTML
+      const get = (label) => {
+        const re = new RegExp(`>${label}[:\\s]*</[^>]+>\\s*<[^>]+>([^<]+)<`, 'i');
+        const m = html.match(re);
+        return m ? m[1].trim() : null;
       };
 
-      // If we got a Redfin URL, fetch the property page for more detail
-      if (result.listingUrl) {
-        try {
-          const detailUrl = `https://www.redfin.com/stingray/api/home/details/aboveTheFold?propertyId=${match.id}&accessLevel=1`;
-          const detailRes = await fetch(detailUrl, {
-            headers: { 'User-Agent': 'Mozilla/5.0 (house-hunt property tracker)' },
-          });
-          const detailText = await detailRes.text();
-          const detailJson = JSON.parse(detailText.replace(/^{}&&/, ''));
-          const info = detailJson?.payload?.addressSectionInfo;
-          const basic = detailJson?.payload?.publicRecordsInfo?.basicInfo;
+      // Address is typically in a prominent header/title
+      const addrMatch = html.match(/(\d+\s+[A-Z0-9\s]+(?:ST|AVE|BLVD|DR|LN|RD|WAY|CT|PL|CIR|TER|LOOP|PKWY)[^,]*,\s*[A-Za-z\s]+,\s*OR\s+\d{5})/i);
+      const address = addrMatch ? addrMatch[1].trim() : null;
 
-          if (info) {
-            result.address = result.address || info.streetAddress?.assembledAddress;
-            result.price = info.priceInfo?.amount || null;
-          }
-          if (basic) {
-            result.beds = basic.beds || null;
-            result.baths = basic.baths || null;
-            result.sqft = basic.sqFt || null;
-            result.yearBuilt = basic.yearBuilt || null;
-            result.lotSize = basic.lotSqFt || null;
-          }
-        } catch {
-          // Detail fetch is best-effort
-        }
-      }
+      const priceMatch = html.match(/\$([0-9,]+)/);
+      const price = priceMatch ? parseInt(priceMatch[1].replace(/,/g, ''), 10) : null;
 
-      res.json(result);
+      const bedsMatch = html.match(/(\d+)\s*(?:Bed|BR|Bedroom)/i);
+      const beds = bedsMatch ? parseInt(bedsMatch[1], 10) : null;
+
+      const bathMatch = html.match(/(\d+)\s*(?:full\s*bath|Full\s*Bath)/i);
+      const baths = bathMatch ? parseInt(bathMatch[1], 10) : null;
+
+      const sqftMatch = html.match(/([\d,]+)\s*(?:Sq\.?\s*Ft|sqft|SqFt)/i);
+      const sqft = sqftMatch ? parseInt(sqftMatch[1].replace(/,/g, ''), 10) : null;
+
+      const yearMatch = html.match(/(?:Year\s*Built|Built)[:\s]*(\d{4})/i);
+      const yearBuilt = yearMatch ? parseInt(yearMatch[1], 10) : null;
+
+      const lotMatch = html.match(/(?:Lot\s*Size|Acres)[:\s]*([\d.]+)\s*Acre/i);
+      const lotAcres = lotMatch ? parseFloat(lotMatch[1]) : null;
+
+      const mlsMatch = html.match(/(?:MLS|Listing)\s*#?\s*:?\s*(\d{6,})/i);
+      const mlsId = mlsMatch ? mlsMatch[1] : null;
+
+      const garageMatch = html.match(/(\d+)\s*(?:car|Car)\s*(?:garage|Garage)/i);
+      const garage = garageMatch ? garageMatch[1] + '-car' : null;
+
+      const hoaMatch = html.match(/\$([0-9,]+)\s*\/\s*(?:mo|month)/i);
+      const hoaMonthly = hoaMatch ? parseInt(hoaMatch[1].replace(/,/g, ''), 10) : null;
+
+      const typeMatch = html.match(/(?:Detached|Attached|Condo|Townhouse|Manufactured)/i);
+      const propertyType = typeMatch ? typeMatch[0] : null;
+
+      const storiesMatch = html.match(/(\d+)[- ](?:story|Story|level|Level)/i);
+      const stories = storiesMatch ? parseInt(storiesMatch[1], 10) : null;
+
+      res.json({
+        address,
+        price,
+        beds,
+        baths,
+        sqft,
+        yearBuilt,
+        lotAcres,
+        mlsId,
+        garage,
+        hoaMonthly,
+        propertyType,
+        stories,
+        sourceUrl: url,
+      });
     } catch (error) {
-      console.error('MLS lookup error:', error);
-      res.status(500).json({ error: 'MLS lookup failed' });
+      console.error('RMLS lookup error:', error);
+      res.status(500).json({ error: 'RMLS lookup failed' });
     }
   });
 
