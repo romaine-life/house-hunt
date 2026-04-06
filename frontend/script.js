@@ -53,6 +53,7 @@ function initMap() {
     center: [-122.68, 45.52], // Portland [lng, lat]
     zoom: 10,
     style: 'night',
+    showZoomControl: true,
     authOptions: {
       authType: 'anonymous',
       clientId: CONFIG.mapsClientId,
@@ -73,33 +74,56 @@ function initMap() {
     datasource = new atlas.source.DataSource();
     map.sources.add(datasource);
 
-    // Bubble layer for colored dots
-    const bubbleLayer = new atlas.layer.BubbleLayer(datasource, null, {
-      radius: 10,
-      strokeWidth: 2,
-      strokeColor: '#11111b',
-      color: ['get', 'color'],
-    });
+    // Create pin icons for each status color
+    for (const [status, color] of Object.entries(STATUS_COLORS)) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 24;
+      canvas.height = 32;
+      const ctx = canvas.getContext('2d');
+      // Pin shape
+      ctx.beginPath();
+      ctx.moveTo(12, 32);
+      ctx.bezierCurveTo(12, 32, 0, 20, 0, 12);
+      ctx.arc(12, 12, 12, Math.PI, 0, false);
+      ctx.bezierCurveTo(24, 20, 12, 32, 12, 32);
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.strokeStyle = '#11111b';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      // Inner dot
+      ctx.beginPath();
+      ctx.arc(12, 12, 4, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(17,17,27,0.3)';
+      ctx.fill();
+      map.imageSprite.add(`pin-${status}`, canvas.toDataURL());
+    }
 
-    // Symbol layer for labels (address below pin)
-    const symbolLayer = new atlas.layer.SymbolLayer(datasource, null, {
-      iconOptions: { image: 'none' },
+    // Symbol layer — fixed pixel size regardless of zoom
+    const pinLayer = new atlas.layer.SymbolLayer(datasource, null, {
+      iconOptions: {
+        image: ['concat', 'pin-', ['get', 'status']],
+        size: 1,
+        anchor: 'bottom',
+        allowOverlap: true,
+      },
       textOptions: {
         textField: ['get', 'shortAddress'],
-        offset: [0, 1.2],
+        offset: [0, 0.5],
         size: 11,
         color: '#cdd6f4',
         haloColor: '#11111b',
         haloWidth: 1,
+        anchor: 'top',
       },
     });
 
-    map.layers.add([bubbleLayer, symbolLayer]);
+    map.layers.add(pinLayer);
 
     // Popup on click
-    popup = new atlas.Popup({ closeButton: true, pixelOffset: [0, -12] });
+    popup = new atlas.Popup({ closeButton: true, pixelOffset: [0, -32] });
 
-    map.events.add('click', bubbleLayer, (e) => {
+    map.events.add('click', pinLayer, (e) => {
       if (e.shapes?.length > 0) {
         const shape = e.shapes[0];
         const props = shape.getProperties();
@@ -113,10 +137,10 @@ function initMap() {
       }
     });
 
-    map.events.add('mousemove', bubbleLayer, () => {
+    map.events.add('mousemove', pinLayer, () => {
       map.getCanvasContainer().style.cursor = 'pointer';
     });
-    map.events.add('mouseleave', bubbleLayer, () => {
+    map.events.add('mouseleave', pinLayer, () => {
       map.getCanvasContainer().style.cursor = '';
     });
   });
@@ -405,7 +429,7 @@ function setPreviewMarker(lat, lng) {
   if (datasource) {
     previewMarker = new atlas.data.Feature(
       new atlas.data.Point([lng, lat]),
-      { color: STATUS_COLORS.interested, shortAddress: '', id: '__preview' },
+      { status: 'interested', shortAddress: '', id: '__preview' },
     );
     datasource.add(previewMarker);
   }
