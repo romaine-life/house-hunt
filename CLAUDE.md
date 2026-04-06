@@ -1,18 +1,21 @@
 # house-hunt
 
-Map-based property tracker at househunt.romaine.life. Public visitors see an Azure Maps dark-themed map with pins. Nelson logs in via terminal-minted JWT to manage properties.
+Map-based property tracker at househunt.romaine.life. Public visitors see an Azure Maps dark-themed map with pins. Nelson logs in via Microsoft MSAL.js to manage properties.
 
 ## Auth
 
-Terminal-minted JWTs — identical to my-homepage. The `at` command mints a 30-day JWT, exchanges it for a one-time code via `POST /auth/code`, and opens the browser at `/auth/callback?code=...` to set an HttpOnly cookie. No MSAL, no login forms.
+MSAL.js Microsoft login in the browser — same pattern as kill-me, investing, and plant-agent. Shared `msAuth` middleware mounted at `/househunt` on the API handles token verification and JWT issuance.
 
-- JWT claims: `{ sub, email, name, role, iat, exp }` — signed with `api-jwt-signing-secret` from Key Vault.
-- No browser auth fallback — unauthenticated users see the map (public) but no admin controls.
+- Frontend uses MSAL.js redirect flow with `@azure/msal-browser` CDN.
+- Microsoft ID token sent to `POST /househunt/auth/microsoft/login`, verified via JWKS, returns 7-day JWT.
+- Admin role: `nelson-devops-project@outlook.com`. All others: viewer.
+- Admin API calls use `Authorization: Bearer <token>` header.
+- Unauthenticated users see the map (public) but no admin controls.
 - Local dev port 3003 — frontend on 3003, shared API on 3000.
 
 ## Routes Package (`packages/routes/`)
 
-Published as `@nelsong6/house-hunt-routes` to GitHub Packages. CRUD for properties stored in Azure Blob Storage (single `properties.json` blob, versioned). Receives `requireAuth`, `propertiesContainerClient`, and `getMapsToken` via dependency injection from the shared API. Public endpoint `GET /api/properties` has no auth. `GET /maps/token` is also public (map must render for everyone) — returns a short-lived Azure AD token for Azure Maps, cached server-side with 60s buffer. All write endpoints require auth.
+Published as `@nelsong6/house-hunt-routes` to GitHub Packages. CRUD for properties stored in Azure Blob Storage (single `properties.json` blob, versioned). Receives `requireAuth`, `propertiesContainerClient`, and `getMapsToken` via dependency injection from the shared API. Auth is handled by the shared `msAuth` middleware — the routes package has no auth endpoints. Public endpoint `GET /api/properties` has no auth. `GET /maps/token` is also public (map must render for everyone) — returns a short-lived Azure AD token for Azure Maps, cached server-side with 60s buffer. All write endpoints require auth.
 
 ## Storage
 
@@ -72,10 +75,7 @@ Deploy workflow pushes to `gh-pages` branch via `peaceiris/actions-gh-pages`. St
 - `PUT /api/properties/:id` — admin, update property
 - `DELETE /api/properties/:id` — admin, delete property
 - `PUT /api/checklist-schema` — admin, update checklist items
-- `POST /auth/code` — JWT to one-time code
-- `GET /auth/callback` — code to cookie
-- `GET /auth/whoami` — identity from cookie
-- `GET /auth/logout` — clear cookie
+- `POST /auth/microsoft/login` — shared msAuth (verify Microsoft ID token, issue JWT)
 
 ## Publish Pipeline
 
@@ -88,3 +88,4 @@ Triggers on push to `packages/routes/**`. Auto-bumps patch version, publishes to
 - **Initial scaffold** — created the full app: frontend (Azure Maps dark-themed map + Catppuccin sidebar), routes package (auth + blob CRUD + maps token endpoint), and OpenTofu infrastructure (Blob Storage, Azure Maps account with managed identity auth). Follows the my-homepage pattern for auth (terminal-minted JWT) and data storage (single versioned JSON blob). Azure Maps chosen over Google Maps to avoid external API keys — uses the same OIDC/managed identity pattern as the rest of the infra. Maps account lives in this repo's Terraform (not infra-bootstrap) so it tears down cleanly with the app.
 - **Switched from Azure SWA to GitHub Pages** — hit the free SWA quota on the subscription. GitHub Pages has no limit, supports custom domains with HTTPS, and the frontend is just static files with no Azure-native dependencies. Discussed Google Maps vs Azure Maps vs Leaflet — landed on Azure Maps for zero-key infra-native auth.
 - **Full infra rollout** — added `house-hunt` to infra-bootstrap's app module (OIDC, service principal, role assignments). Deployed storage account, Azure Maps account, DNS CNAME, and App Config keys. Mounted `@nelsong6/house-hunt-routes` on the shared API at `/househunt` with blob storage + Azure Maps token callback. Frontend deployed to GitHub Pages at househunt.romaine.life.
+- **Switched auth from terminal-minted JWT to MSAL.js browser login** — Nelson wanted browser-based auth, not terminal-minted. Frontend now uses Microsoft MSAL.js redirect flow. Shared `msAuth` middleware mounted at `/househunt`. Removed terminal auth endpoints (pendingCodes, /auth/code, /auth/callback, /auth/whoami, /auth/logout) from routes package. Admin API calls use Bearer token instead of cookies. Added redirect URIs for househunt.romaine.life and localhost:3003 to the Azure AD app registration.
