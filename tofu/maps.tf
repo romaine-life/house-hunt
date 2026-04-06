@@ -19,3 +19,10 @@ resource "azurerm_role_assignment" "shared_api_maps_reader" {
   role_definition_name = "Azure Maps Data Reader"
   principal_id         = "ae41eca7-9819-4028-8690-91a92e494893" # shared-api system-assigned identity
 }
+
+# Grant Nelson's personal identity read access (local dev via az login)
+resource "azurerm_role_assignment" "dev_maps_reader" {
+  scope                = azurerm_maps_account.house_hunt.id
+  role_definition_name = "Azure Maps Data Reader"
+  principal_id         = "cf57d57d-1411-4f59-b517-e9a8600b140a" # nelson (az login)
+}

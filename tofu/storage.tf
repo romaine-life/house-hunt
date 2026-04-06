@@ -29,3 +29,10 @@ resource "azurerm_role_assignment" "shared_api_storage_contributor" {
   role_definition_name = "Storage Blob Data Contributor"
   principal_id         = "ae41eca7-9819-4028-8690-91a92e494893" # shared-api system-assigned identity
 }
+
+# Grant Nelson's personal identity write access (local dev via az login)
+resource "azurerm_role_assignment" "dev_storage_contributor" {
+  scope                = azurerm_storage_account.house_hunt.id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = "cf57d57d-1411-4f59-b517-e9a8600b140a" # nelson (az login)
+}
