@@ -60,7 +60,9 @@ Checklist schema is admin-editable via `PUT /api/checklist-schema`.
 
 ## Frontend
 
-Static HTML + vanilla JS + Azure Maps SDK (CDN). No build step. Full-screen dark-themed map (`grayscale_dark` style) with a collapsible right sidebar for property list and admin form. Colored bubble markers by status (Catppuccin palette). Geocoding via Azure Maps Search API using the same AD token flow.
+Static HTML + vanilla JS + Azure Maps SDK (CDN). No build step. Hosted on **GitHub Pages** (not Azure SWA — free tier quota exhausted on the subscription). Full-screen dark-themed map (`grayscale_dark` style) with a collapsible right sidebar for property list and admin form. Colored bubble markers by status (Catppuccin palette). Geocoding via Azure Maps Search API using the same AD token flow.
+
+Deploy workflow pushes to `gh-pages` branch via `peaceiris/actions-gh-pages`. Still uses Azure OIDC login to fetch the Maps client ID from the Azure Maps account at deploy time. DNS CNAME points `househunt.romaine.life` to `nelsong6.github.io`.
 
 ## API Endpoints (mounted at `/househunt` on shared API)
 
@@ -83,4 +85,6 @@ Triggers on push to `packages/routes/**`. Auto-bumps patch version, publishes to
 
 ### 2026-04-06
 
-- **Initial scaffold** — created the full app: frontend (Azure Maps dark-themed map + Catppuccin sidebar), routes package (auth + blob CRUD + maps token endpoint), and OpenTofu infrastructure (SWA, Blob Storage, Azure Maps account with managed identity auth). Follows the my-homepage pattern for auth (terminal-minted JWT) and data storage (single versioned JSON blob). Azure Maps chosen over Google Maps to avoid external API keys — uses the same OIDC/managed identity pattern as the rest of the infra. Maps account lives in this repo's Terraform (not infra-bootstrap) so it tears down cleanly with the app.
+- **Initial scaffold** — created the full app: frontend (Azure Maps dark-themed map + Catppuccin sidebar), routes package (auth + blob CRUD + maps token endpoint), and OpenTofu infrastructure (Blob Storage, Azure Maps account with managed identity auth). Follows the my-homepage pattern for auth (terminal-minted JWT) and data storage (single versioned JSON blob). Azure Maps chosen over Google Maps to avoid external API keys — uses the same OIDC/managed identity pattern as the rest of the infra. Maps account lives in this repo's Terraform (not infra-bootstrap) so it tears down cleanly with the app.
+- **Switched from Azure SWA to GitHub Pages** — hit the free SWA quota on the subscription. GitHub Pages has no limit, supports custom domains with HTTPS, and the frontend is just static files with no Azure-native dependencies. Discussed Google Maps vs Azure Maps vs Leaflet — landed on Azure Maps for zero-key infra-native auth.
+- **Full infra rollout** — added `house-hunt` to infra-bootstrap's app module (OIDC, service principal, role assignments). Deployed storage account, Azure Maps account, DNS CNAME, and App Config keys. Mounted `@nelsong6/house-hunt-routes` on the shared API at `/househunt` with blob storage + Azure Maps token callback. Frontend deployed to GitHub Pages at househunt.romaine.life.
