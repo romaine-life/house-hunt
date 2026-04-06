@@ -459,10 +459,11 @@ function bindEvents() {
       if (info.sqft) parts.push(`${info.sqft.toLocaleString()} sqft`);
       if (info.yearBuilt) parts.push(`built ${info.yearBuilt}`);
       if (info.lotAcres) parts.push(`${info.lotAcres} acres`);
+      else if (info.lotSqft) parts.push(`${info.lotSqft} sqft lot`);
       if (info.garage) parts.push(info.garage + ' garage');
       if (info.hoaMonthly) parts.push(`$${info.hoaMonthly}/mo HOA`);
-      if (info.propertyType) parts.push(info.propertyType);
-      if (info.stories) parts.push(`${info.stories}-story`);
+      if (info.style) parts.push(info.style);
+      else if (info.propertyType) parts.push(info.propertyType);
       if (info.mlsId) parts.push(`MLS# ${info.mlsId}`);
       if (parts.length > 0) {
         const existing = document.getElementById('form-notes').value;

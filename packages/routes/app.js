@@ -112,45 +112,61 @@ export function createHouseHuntRoutes({ requireAuth, propertiesContainerClient, 
         return m ? m[1].trim() : null;
       };
 
-      // Address: "16788 SW LORIKEET LN Beaverton, OR 97007" (no comma between street and city)
-      const addrMatch = html.match(/(\d+\s+[A-Z0-9\s]+(?:ST|AVE|BLVD|DR|LN|RD|WAY|CT|PL|CIR|TER|LOOP|PKWY)\s+[A-Za-z\s]+,\s*OR\s+\d{5})/i);
-      let address = addrMatch ? addrMatch[1].trim() : null;
-      // Normalize: insert comma before city if missing (e.g. "LN Beaverton" -> "LN, Beaverton")
-      if (address) {
-        address = address.replace(/(ST|AVE|BLVD|DR|LN|RD|WAY|CT|PL|CIR|TER|LOOP|PKWY)\s+([A-Z])/i, '$1, $2');
+      // Address: extract from MAPLINK_ADDRESS_FULL class which has clean commas
+      // e.g. "16788 SW LORIKEET LN, Beaverton, 97007"
+      const mapLinkMatch = html.match(/(\d+\s+[A-Z0-9 ]+(?:ST|AVE|BLVD|DR|LN|RD|WAY|CT|PL|CIR|TER|LOOP|PKWY),\s*[A-Za-z ]+,\s*\d{5})/i);
+      let address = mapLinkMatch ? mapLinkMatch[1].trim() : null;
+      // Add state if missing (RMLS omits "OR" in the map link version)
+      if (address && !address.includes(' OR ')) {
+        address = address.replace(/,\s*(\d{5})/, ', OR $1');
       }
 
-      const priceMatch = html.match(/\$([0-9,]+)/);
+      // Price: "$650,900" in a span before BED_BATH
+      const priceMatch = html.match(/\$([0-9,]+)<\/span>/);
       const price = priceMatch ? parseInt(priceMatch[1].replace(/,/g, ''), 10) : null;
 
-      const bedsMatch = html.match(/(\d+)\s*(?:Bed|BR|Bedroom)/i);
+      // Summary line: "3 bd | 2 / 0 ba | 1711 sqft" in BED_BATH span
+      const summaryMatch = html.match(/id="BED_BATH"[^>]*>([^<]+)/);
+      const summary = summaryMatch ? summaryMatch[1] : '';
+      const bedsMatch = summary.match(/(\d+)\s*bd/);
       const beds = bedsMatch ? parseInt(bedsMatch[1], 10) : null;
-
-      const bathMatch = html.match(/(\d+)\s*(?:full\s*bath|Full\s*Bath)/i);
+      const bathMatch = summary.match(/(\d+)\s*\/\s*(\d+)\s*ba/);
       const baths = bathMatch ? parseInt(bathMatch[1], 10) : null;
+      const halfBaths = bathMatch ? parseInt(bathMatch[2], 10) : null;
+      const sqftMatch = summary.match(/(\d+)\s*sqft/);
+      const sqft = sqftMatch ? parseInt(sqftMatch[1], 10) : null;
 
-      const sqftMatch = html.match(/([\d,]+)\s*(?:Sq\.?\s*Ft|sqft|SqFt)/i);
-      const sqft = sqftMatch ? parseInt(sqftMatch[1].replace(/,/g, ''), 10) : null;
+      // Labeled fields: <label>X:</label><span class="data">VALUE</span>
+      const labeled = (label) => {
+        const re = new RegExp(label + ':</label>\\s*<span[^>]*class="data"[^>]*>([^<]+)', 'i');
+        const m = html.match(re);
+        return m ? m[1].trim() : null;
+      };
 
-      const yearMatch = html.match(/(?:Year\s*Built|Built)[:\s]*(\d{4})/i);
-      const yearBuilt = yearMatch ? parseInt(yearMatch[1], 10) : null;
+      const yearRaw = labeled('Year Built');
+      const yearBuilt = yearRaw ? parseInt(yearRaw.match(/\d{4}/)?.[0], 10) || null : null;
 
-      const lotMatch = html.match(/(?:Lot\s*Size|Acres)[:\s]*([\d.]+)\s*Acre/i);
-      const lotAcres = lotMatch ? parseFloat(lotMatch[1]) : null;
+      const lotRaw = labeled('Lot Size');
+      const lotAcreMatch = lotRaw?.match(/([\d.]+)\s*Acre/i);
+      const lotSqftMatch = lotRaw?.match(/([\d,]+)\s*(?:to\s*([\d,]+)\s*)?SqFt/i);
+      const lotAcres = lotAcreMatch ? parseFloat(lotAcreMatch[1]) : null;
+      const lotSqft = lotSqftMatch ? lotSqftMatch[2] || lotSqftMatch[1] : null;
 
       const mlsMatch = html.match(/(?:MLS|Listing)\s*#?\s*:?\s*(\d{6,})/i);
       const mlsId = mlsMatch ? mlsMatch[1] : null;
 
-      const garageMatch = html.match(/(\d+)\s*(?:car|Car)\s*(?:garage|Garage)/i);
-      const garage = garageMatch ? garageMatch[1] + '-car' : null;
+      const garageRaw = labeled('Garage');
+      const garageCountMatch = garageRaw?.match(/^(\d+)/);
+      const garage = garageCountMatch ? garageCountMatch[1] + '-car' : null;
 
-      const hoaMatch = html.match(/\$([0-9,]+)\s*\/\s*(?:mo|month)/i);
+      // HOA dues: under "Dues:" label, e.g. "$41  / Monthly"
+      const duesRaw = labeled('Dues');
+      const hoaMatch = duesRaw?.match(/\$([0-9,]+)/);
       const hoaMonthly = hoaMatch ? parseInt(hoaMatch[1].replace(/,/g, ''), 10) : null;
 
-      const typeMatch = html.match(/(?:Detached|Attached|Condo|Townhouse|Manufactured)/i);
-      const propertyType = typeMatch ? typeMatch[0] : null;
-
-      const storiesMatch = html.match(/(\d+)[- ](?:story|Story|level|Level)/i);
+      const propertyType = labeled('Type');
+      const style = labeled('Style');
+      const storiesMatch = style?.match(/(\d+)\s*Stor/i);
       const stories = storiesMatch ? parseInt(storiesMatch[1], 10) : null;
 
       res.json({
@@ -158,13 +174,16 @@ export function createHouseHuntRoutes({ requireAuth, propertiesContainerClient, 
         price,
         beds,
         baths,
+        halfBaths,
         sqft,
         yearBuilt,
         lotAcres,
+        lotSqft,
         mlsId,
         garage,
         hoaMonthly,
         propertyType,
+        style,
         stories,
         sourceUrl: url,
       });
