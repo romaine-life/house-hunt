@@ -70,51 +70,56 @@ function initMap() {
     },
   });
 
-  map.events.add('ready', () => {
+  map.events.add('ready', async () => {
     datasource = new atlas.source.DataSource();
     map.sources.add(datasource);
 
-    // Create pin icons for each status color
-    for (const [status, color] of Object.entries(STATUS_COLORS)) {
+    // Create pin icons for each status color — await all before adding layers
+    const iconPromises = Object.entries(STATUS_COLORS).map(([status, color]) => {
       const canvas = document.createElement('canvas');
-      canvas.width = 24;
-      canvas.height = 32;
+      const s = 2; // scale for retina
+      canvas.width = 24 * s;
+      canvas.height = 36 * s;
       const ctx = canvas.getContext('2d');
+      ctx.scale(s, s);
       // Pin shape
       ctx.beginPath();
-      ctx.moveTo(12, 32);
-      ctx.bezierCurveTo(12, 32, 0, 20, 0, 12);
-      ctx.arc(12, 12, 12, Math.PI, 0, false);
-      ctx.bezierCurveTo(24, 20, 12, 32, 12, 32);
+      ctx.moveTo(12, 36);
+      ctx.bezierCurveTo(12, 36, 0, 22, 0, 13);
+      ctx.arc(12, 13, 12, Math.PI, 0, false);
+      ctx.bezierCurveTo(24, 22, 12, 36, 12, 36);
       ctx.fillStyle = color;
       ctx.fill();
       ctx.strokeStyle = '#11111b';
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 2;
       ctx.stroke();
       // Inner dot
       ctx.beginPath();
-      ctx.arc(12, 12, 4, 0, Math.PI * 2);
+      ctx.arc(12, 13, 5, 0, Math.PI * 2);
       ctx.fillStyle = 'rgba(17,17,27,0.3)';
       ctx.fill();
-      map.imageSprite.add(`pin-${status}`, canvas.toDataURL());
-    }
+      return map.imageSprite.add(`pin-${status}`, canvas.toDataURL());
+    });
+    await Promise.all(iconPromises);
 
     // Symbol layer — fixed pixel size regardless of zoom
     const pinLayer = new atlas.layer.SymbolLayer(datasource, null, {
       iconOptions: {
         image: ['concat', 'pin-', ['get', 'status']],
-        size: 1,
+        size: 0.5,
         anchor: 'bottom',
         allowOverlap: true,
+        ignorePlacement: true,
       },
       textOptions: {
         textField: ['get', 'shortAddress'],
         offset: [0, 0.5],
-        size: 11,
+        size: 12,
         color: '#cdd6f4',
         haloColor: '#11111b',
-        haloWidth: 1,
+        haloWidth: 1.5,
         anchor: 'top',
+        allowOverlap: true,
       },
     });
 
