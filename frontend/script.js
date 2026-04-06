@@ -301,6 +301,7 @@ function highlightCard(id) {
 function openAddForm() {
   editingId = null;
   document.getElementById('form-title').textContent = 'Add Property';
+  document.getElementById('form-mls').value = '';
   document.getElementById('form-address').value = '';
   document.getElementById('form-status').value = 'interested';
   document.getElementById('form-url').value = '';
@@ -425,6 +426,42 @@ function bindEvents() {
   document.getElementById('login-btn').addEventListener('click', login);
   document.getElementById('logout-btn').addEventListener('click', logout);
   document.getElementById('add-btn').addEventListener('click', openAddForm);
+
+  document.getElementById('mls-btn').addEventListener('click', async () => {
+    const mlsId = document.getElementById('form-mls').value.trim();
+    if (!mlsId) return;
+    const btn = document.getElementById('mls-btn');
+    btn.textContent = '...';
+    btn.disabled = true;
+    try {
+      const res = await fetch(`${CONFIG.apiUrl}/api/mls/${encodeURIComponent(mlsId)}`);
+      if (!res.ok) {
+        alert('MLS listing not found. Try entering the address manually.');
+        return;
+      }
+      const info = await res.json();
+      if (info.address) document.getElementById('form-address').value = info.address;
+      if (info.listingUrl) document.getElementById('form-url').value = info.listingUrl;
+      if (info.lat && info.lng) setPreviewMarker(info.lat, info.lng);
+      // Build notes from metadata
+      const parts = [];
+      if (info.price) parts.push(`$${info.price.toLocaleString()}`);
+      if (info.beds) parts.push(`${info.beds} bed`);
+      if (info.baths) parts.push(`${info.baths} bath`);
+      if (info.sqft) parts.push(`${info.sqft.toLocaleString()} sqft`);
+      if (info.yearBuilt) parts.push(`built ${info.yearBuilt}`);
+      if (info.lotSize) parts.push(`${info.lotSize.toLocaleString()} sqft lot`);
+      if (parts.length > 0) {
+        const existing = document.getElementById('form-notes').value;
+        document.getElementById('form-notes').value = parts.join(' | ') + (existing ? '\n' + existing : '');
+      }
+    } catch (err) {
+      alert('MLS lookup failed: ' + err.message);
+    } finally {
+      btn.textContent = 'Lookup';
+      btn.disabled = false;
+    }
+  });
 
   document.getElementById('geocode-btn').addEventListener('click', async () => {
     const addr = document.getElementById('form-address').value.trim();

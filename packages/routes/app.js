@@ -88,6 +88,69 @@ export function createHouseHuntRoutes({ requireAuth, propertiesContainerClient, 
     return { conflict: false, updatedAt: props.lastModified.toISOString() };
   }
 
+  // ── MLS lookup (public) ──────────────────────────────────────────
+
+  router.get('/api/mls/:id', async (req, res) => {
+    const mlsId = req.params.id.replace(/[^0-9]/g, '');
+    if (!mlsId) return res.status(400).json({ error: 'MLS ID required' });
+
+    try {
+      // Redfin's location search accepts MLS numbers
+      const searchUrl = `https://www.redfin.com/stingray/do/query-location?location=${encodeURIComponent('MLS# ' + mlsId)}&v=2`;
+      const searchRes = await fetch(searchUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (house-hunt property tracker)' },
+      });
+      const searchText = await searchRes.text();
+      // Redfin prefixes JSON with "{}&&" to prevent XSSI
+      const searchJson = JSON.parse(searchText.replace(/^{}&&/, ''));
+
+      const match = searchJson?.payload?.exactMatch;
+      if (!match) {
+        return res.status(404).json({ error: 'MLS listing not found' });
+      }
+
+      const result = {
+        address: match.name || null,
+        lat: match.lat || null,
+        lng: match.lng || null,
+        listingUrl: match.url ? `https://www.redfin.com${match.url}` : null,
+      };
+
+      // If we got a Redfin URL, fetch the property page for more detail
+      if (result.listingUrl) {
+        try {
+          const detailUrl = `https://www.redfin.com/stingray/api/home/details/aboveTheFold?propertyId=${match.id}&accessLevel=1`;
+          const detailRes = await fetch(detailUrl, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (house-hunt property tracker)' },
+          });
+          const detailText = await detailRes.text();
+          const detailJson = JSON.parse(detailText.replace(/^{}&&/, ''));
+          const info = detailJson?.payload?.addressSectionInfo;
+          const basic = detailJson?.payload?.publicRecordsInfo?.basicInfo;
+
+          if (info) {
+            result.address = result.address || info.streetAddress?.assembledAddress;
+            result.price = info.priceInfo?.amount || null;
+          }
+          if (basic) {
+            result.beds = basic.beds || null;
+            result.baths = basic.baths || null;
+            result.sqft = basic.sqFt || null;
+            result.yearBuilt = basic.yearBuilt || null;
+            result.lotSize = basic.lotSqFt || null;
+          }
+        } catch {
+          // Detail fetch is best-effort
+        }
+      }
+
+      res.json(result);
+    } catch (error) {
+      console.error('MLS lookup error:', error);
+      res.status(500).json({ error: 'MLS lookup failed' });
+    }
+  });
+
   // ── Public: read all properties ─────────────────────────────────
 
   router.get('/api/properties', async (_req, res) => {
