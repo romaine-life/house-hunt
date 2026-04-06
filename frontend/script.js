@@ -187,7 +187,7 @@ function buildPopup(props) {
 function fitMapToData() {
   if (datasource.getShapes().length === 0) return;
   const bounds = atlas.data.BoundingBox.fromData(datasource.toJson());
-  map.setCamera({ bounds, padding: 50 });
+  map.setCamera({ bounds, padding: 50, maxZoom: 14 });
 }
 
 // ── Data ───────────────────────────────────────────────────
