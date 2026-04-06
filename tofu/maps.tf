@@ -9,6 +9,7 @@
 resource "azurerm_maps_account" "house_hunt" {
   name                = "house-hunt-maps"
   resource_group_name = azurerm_resource_group.house_hunt.name
+  location            = azurerm_resource_group.house_hunt.location
   sku_name            = "G2"
 }
 
