@@ -112,9 +112,13 @@ export function createHouseHuntRoutes({ requireAuth, propertiesContainerClient, 
         return m ? m[1].trim() : null;
       };
 
-      // Address is typically in a prominent header/title
-      const addrMatch = html.match(/(\d+\s+[A-Z0-9\s]+(?:ST|AVE|BLVD|DR|LN|RD|WAY|CT|PL|CIR|TER|LOOP|PKWY)[^,]*,\s*[A-Za-z\s]+,\s*OR\s+\d{5})/i);
-      const address = addrMatch ? addrMatch[1].trim() : null;
+      // Address: "16788 SW LORIKEET LN Beaverton, OR 97007" (no comma between street and city)
+      const addrMatch = html.match(/(\d+\s+[A-Z0-9\s]+(?:ST|AVE|BLVD|DR|LN|RD|WAY|CT|PL|CIR|TER|LOOP|PKWY)\s+[A-Za-z\s]+,\s*OR\s+\d{5})/i);
+      let address = addrMatch ? addrMatch[1].trim() : null;
+      // Normalize: insert comma before city if missing (e.g. "LN Beaverton" -> "LN, Beaverton")
+      if (address) {
+        address = address.replace(/(ST|AVE|BLVD|DR|LN|RD|WAY|CT|PL|CIR|TER|LOOP|PKWY)\s+([A-Z])/i, '$1, $2');
+      }
 
       const priceMatch = html.match(/\$([0-9,]+)/);
       const price = priceMatch ? parseInt(priceMatch[1].replace(/,/g, ''), 10) : null;
