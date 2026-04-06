@@ -11,6 +11,13 @@ resource "azurerm_maps_account" "house_hunt" {
   resource_group_name = azurerm_resource_group.house_hunt.name
   location            = azurerm_resource_group.house_hunt.location
   sku_name            = "G2"
+
+  cors {
+    allowed_origins = [
+      "https://househunt.romaine.life",
+      "http://localhost:3003",
+    ]
+  }
 }
 
 # Grant shared API's managed identity read access to Azure Maps
