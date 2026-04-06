@@ -4,6 +4,7 @@ on:
   push:
     branches: ["main"]
     paths: ["packages/routes/**"]
+  workflow_dispatch:
 
 permissions:
   contents: read
