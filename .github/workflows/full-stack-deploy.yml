@@ -9,15 +9,18 @@ on:
 permissions:
   id-token: write
   contents: read
+  pages: write
 
 env:
-  STATIC_WEB_APP_NAME: house-hunt-app
   RESOURCE_GROUP_NAME: house-hunt-rg
 
 jobs:
   deploy-frontend:
     name: Deploy Frontend
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: https://househunt.romaine.life
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -39,22 +42,12 @@ jobs:
           chmod +x ./frontend/generate-config.sh
           ./frontend/generate-config.sh
 
-      - name: Get Static Web App Token
-        id: swa-token
-        run: |
-          TOKEN=$(az staticwebapp secrets list \
-            --name ${{ env.STATIC_WEB_APP_NAME }} \
-            --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
-            --query "properties.apiKey" -o tsv)
-          echo "::add-mask::$TOKEN"
-          echo "deployment_token=$TOKEN" >> $GITHUB_OUTPUT
+      - name: Add CNAME file
+        run: echo "househunt.romaine.life" > ./frontend/CNAME
 
-      - name: Deploy to Azure Static Web App
-        uses: Azure/static-web-apps-deploy@v1
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          azure_static_web_apps_api_token: ${{ steps.swa-token.outputs.deployment_token }}
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          action: "upload"
-          app_location: "./frontend"
-          output_location: ""
-          skip_app_build: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./frontend
+          cname: househunt.romaine.life

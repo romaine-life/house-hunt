@@ -2,14 +2,6 @@ output "resource_group_name" {
   value = azurerm_resource_group.house_hunt.name
 }
 
-output "swa_name" {
-  value = azurerm_static_web_app.house_hunt.name
-}
-
-output "swa_default_hostname" {
-  value = azurerm_static_web_app.house_hunt.default_host_name
-}
-
 output "storage_account_name" {
   value = azurerm_storage_account.house_hunt.name
 }
