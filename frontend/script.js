@@ -52,7 +52,7 @@ function initMap() {
   map = new atlas.Map('map', {
     center: [-122.68, 45.52], // Portland [lng, lat]
     zoom: 10,
-    style: 'grayscale_dark',
+    style: 'night',
     authOptions: {
       authType: 'anonymous',
       clientId: CONFIG.mapsClientId,
