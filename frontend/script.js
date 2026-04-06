@@ -1,5 +1,5 @@
 import { CONFIG } from './config.js';
-import { fetchWhoami, logout } from './auth.js';
+import { initAuth, login, logout, getToken, getUser, isAuthenticated } from './auth.js';
 
 // ── State ──────────────────────────────────────────────────
 let map;
@@ -27,12 +27,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadProperties();
   renderProperties();
 
-  const user = await fetchWhoami();
-  if (user) {
-    isAdmin = true;
-    document.getElementById('user-bar').classList.remove('hidden');
-    document.getElementById('user-name').textContent = user.name || user.email;
-    document.getElementById('add-btn').classList.remove('hidden');
+  const authed = await initAuth();
+  if (authed) {
+    const user = getUser();
+    isAdmin = user?.role === 'admin';
+    document.getElementById('login-btn').classList.add('hidden');
+    document.getElementById('user-name').textContent = user?.name || user?.email || '';
+    document.getElementById('user-name').classList.remove('hidden');
+    document.getElementById('logout-btn').classList.remove('hidden');
+    if (isAdmin) {
+      document.getElementById('add-btn').classList.remove('hidden');
+    }
   }
 
   if (data.properties.length > 0) {
@@ -156,9 +161,7 @@ function fitMapToData() {
 // ── Data ───────────────────────────────────────────────────
 async function loadProperties() {
   try {
-    const res = await fetch(`${CONFIG.apiUrl}/api/properties`, {
-      credentials: 'include',
-    });
+    const res = await fetch(`${CONFIG.apiUrl}/api/properties`);
     if (!res.ok) {
       console.warn('Failed to load properties:', res.status);
       return;
@@ -190,8 +193,7 @@ async function saveProperty(prop) {
 
     const res = await fetch(url, {
       method,
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
       body: JSON.stringify({ property: prop, lastKnownVersion }),
     });
 
@@ -217,8 +219,7 @@ async function deleteProperty(id) {
   try {
     const res = await fetch(`${CONFIG.apiUrl}/api/properties/${id}`, {
       method: 'DELETE',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
       body: JSON.stringify({ lastKnownVersion }),
     });
     if (res.ok) {
@@ -421,6 +422,7 @@ function bindEvents() {
     document.getElementById('sidebar').classList.toggle('collapsed');
   });
 
+  document.getElementById('login-btn').addEventListener('click', login);
   document.getElementById('logout-btn').addEventListener('click', logout);
   document.getElementById('add-btn').addEventListener('click', openAddForm);
 

@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { randomBytes } from 'node:crypto';
-import jwt from 'jsonwebtoken';
 
 const BLOB_NAME = 'properties.json';
 
@@ -15,20 +14,17 @@ const EMPTY_DATA = {
 /**
  * Creates the house-hunt routes as an Express router.
  *
+ * Auth is handled by the shared msAuth middleware mounted in the API.
+ * This package only provides data endpoints + maps token.
+ *
  * @param {{
  *   requireAuth: Function,
  *   propertiesContainerClient: import('@azure/storage-blob').ContainerClient,
- *   jwtSecret: string,
- *   frontendUrl: string,
  *   getMapsToken: () => Promise<{token: string, expiresOnTimestamp: number}>,
  * }} opts
  */
-export function createHouseHuntRoutes({ requireAuth, propertiesContainerClient, jwtSecret, frontendUrl, getMapsToken }) {
+export function createHouseHuntRoutes({ requireAuth, propertiesContainerClient, getMapsToken }) {
   const router = Router();
-
-  // ── One-time code store (in-memory, short-lived) ────────────────
-  const pendingCodes = new Map();
-  const CODE_TTL_MS = 30_000;
 
   // Health check
   router.get('/health', (_req, res) => {
@@ -41,7 +37,6 @@ export function createHouseHuntRoutes({ requireAuth, propertiesContainerClient, 
 
   router.get('/maps/token', async (_req, res) => {
     try {
-      // Reuse token if it has >60s remaining
       if (cachedToken && cachedToken.expiresOnTimestamp - Date.now() > 60_000) {
         return res.json({ token: cachedToken.token });
       }
@@ -51,69 +46,6 @@ export function createHouseHuntRoutes({ requireAuth, propertiesContainerClient, 
       console.error('Error fetching maps token:', error);
       res.status(500).json({ error: 'Failed to fetch maps token' });
     }
-  });
-
-  // ── Auth: terminal -> browser cookie flow ───────────────────────
-
-  router.post('/auth/code', (req, res) => {
-    const { token } = req.body;
-    if (!token) return res.status(400).json({ error: 'token required' });
-
-    try {
-      jwt.verify(token, jwtSecret);
-    } catch {
-      return res.status(401).json({ error: 'invalid token' });
-    }
-
-    const code = randomBytes(32).toString('hex');
-    pendingCodes.set(code, { token, expires: Date.now() + CODE_TTL_MS });
-
-    for (const [k, v] of pendingCodes) {
-      if (v.expires < Date.now()) pendingCodes.delete(k);
-    }
-
-    res.json({ code });
-  });
-
-  router.get('/auth/callback', (req, res) => {
-    const { code } = req.query;
-    if (!code) return res.status(400).send('Missing code');
-
-    const entry = pendingCodes.get(code);
-    if (!entry || entry.expires < Date.now()) {
-      pendingCodes.delete(code);
-      return res.status(401).send('Invalid or expired code');
-    }
-
-    pendingCodes.delete(code);
-
-    res.cookie('auth_token', entry.token, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'lax',
-      maxAge: 30 * 24 * 60 * 60 * 1000,
-      path: '/',
-    });
-
-    res.redirect(frontendUrl || '/');
-  });
-
-  router.get('/auth/whoami', (req, res) => {
-    const cookies = req.headers.cookie || '';
-    const match = cookies.split(';').map(c => c.trim()).find(c => c.startsWith('auth_token='));
-    if (!match) return res.status(401).json({ error: 'not authenticated' });
-
-    try {
-      const decoded = jwt.verify(match.slice('auth_token='.length), jwtSecret);
-      res.json({ name: decoded.name || null, email: decoded.email || decoded.sub });
-    } catch {
-      res.status(401).json({ error: 'invalid token' });
-    }
-  });
-
-  router.get('/auth/logout', (_req, res) => {
-    res.clearCookie('auth_token', { path: '/' });
-    res.redirect(frontendUrl || '/');
   });
 
   // ── Blob helpers ────────────────────────────────────────────────

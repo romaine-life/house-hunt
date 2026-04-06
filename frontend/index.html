@@ -14,9 +14,10 @@
     <button id="sidebar-toggle" title="Toggle sidebar">&lsaquo;</button>
 
     <div id="sidebar-content">
-      <div id="user-bar" class="hidden">
-        <span id="user-name"></span>
-        <button id="logout-btn" class="link-btn">logout</button>
+      <div id="user-bar">
+        <button id="login-btn" class="primary-btn">Sign in</button>
+        <span id="user-name" class="hidden"></span>
+        <button id="logout-btn" class="link-btn hidden">logout</button>
       </div>
 
       <div id="property-list">
@@ -65,6 +66,7 @@
   </div>
 
   <script src="https://atlas.microsoft.com/sdk/javascript/mapcontrol/3/atlas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@4.12.0/lib/msal-browser.min.js"></script>
   <script type="module" src="script.js"></script>
 </body>
 </html>

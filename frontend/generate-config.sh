@@ -1,18 +1,17 @@
 #!/bin/bash
-# Generates frontend/config.js from environment variables.
-# Called by the deploy workflow after Azure Login.
+set -euo pipefail
 
-API_URL="${API_URL:-http://localhost:3000/househunt}"
-MAPS_CLIENT_ID="${MAPS_CLIENT_ID:-YOUR_MAPS_CLIENT_ID}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-cat > "$(dirname "$0")/config.js" <<EOF
-const _isBypass = window.location.hostname.includes('azurestaticapps.net');
+: "${API_URL:?ERROR: API_URL is not set}"
+: "${MAPS_CLIENT_ID:?ERROR: MAPS_CLIENT_ID is not set}"
+: "${MICROSOFT_CLIENT_ID:?ERROR: MICROSOFT_CLIENT_ID is not set}"
 
+cat <<EOF > "$SCRIPT_DIR/config.js"
 export const CONFIG = {
-  apiUrl: _isBypass
-    ? '${API_URL}'
-    : 'http://localhost:3000/househunt',
-  mapsClientId: '${MAPS_CLIENT_ID}',
+  apiUrl: "${API_URL}",
+  mapsClientId: "${MAPS_CLIENT_ID}",
+  microsoftClientId: "${MICROSOFT_CLIENT_ID}",
 };
 EOF
 
