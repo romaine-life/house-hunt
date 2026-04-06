@@ -1,0 +1,8 @@
+node_modules/
+frontend/config.js
+local-env-files/
+.env
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl

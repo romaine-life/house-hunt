@@ -1,0 +1,21 @@
+{
+  "name": "@nelsong6/house-hunt-routes",
+  "version": "0.0.1",
+  "type": "module",
+  "description": "House hunt route handlers for the shared API",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "jsonwebtoken": "^9.0.0"
+  },
+  "peerDependencies": {
+    "@azure/storage-blob": "^12.0.0",
+    "express": "^4.18.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  }
+}

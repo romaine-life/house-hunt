@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>House Hunt</title>
+  <link rel="stylesheet" href="https://atlas.microsoft.com/sdk/javascript/mapcontrol/3/atlas.min.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="map"></div>
+
+  <div id="sidebar" class="collapsed">
+    <button id="sidebar-toggle" title="Toggle sidebar">&lsaquo;</button>
+
+    <div id="sidebar-content">
+      <div id="user-bar" class="hidden">
+        <span id="user-name"></span>
+        <button id="logout-btn" class="link-btn">logout</button>
+      </div>
+
+      <div id="property-list">
+        <h2>Properties</h2>
+        <div id="properties"></div>
+        <button id="add-btn" class="primary-btn hidden">+ Add Property</button>
+      </div>
+
+      <div id="property-form" class="hidden">
+        <h2 id="form-title">Add Property</h2>
+        <label>
+          Address
+          <div class="input-row">
+            <input type="text" id="form-address" placeholder="123 Main St, City, State" />
+            <button id="geocode-btn" class="small-btn">Locate</button>
+          </div>
+        </label>
+        <label>
+          Status
+          <select id="form-status">
+            <option value="interested">Interested</option>
+            <option value="visited">Visited</option>
+            <option value="offer">Offer</option>
+            <option value="rejected">Rejected</option>
+            <option value="closed">Closed</option>
+          </select>
+        </label>
+        <label>
+          Listing URL
+          <input type="url" id="form-url" placeholder="https://..." />
+        </label>
+        <label>
+          Notes
+          <textarea id="form-notes" rows="3" placeholder="Freeform notes..."></textarea>
+        </label>
+        <fieldset id="form-checklist">
+          <legend>Checklist</legend>
+        </fieldset>
+        <div class="form-actions">
+          <button id="save-btn" class="primary-btn">Save</button>
+          <button id="cancel-btn" class="link-btn">Cancel</button>
+          <button id="delete-btn" class="danger-btn hidden">Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://atlas.microsoft.com/sdk/javascript/mapcontrol/3/atlas.min.js"></script>
+  <script type="module" src="script.js"></script>
+</body>
+</html>
