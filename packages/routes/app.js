@@ -169,6 +169,14 @@ export function createHouseHuntRoutes({ requireAuth, propertiesContainerClient, 
       const storiesMatch = style?.match(/(\d+)\s*Stor/i);
       const stories = storiesMatch ? parseInt(storiesMatch[1], 10) : null;
 
+      // Main listing photo: class='PHOTO_NEW' with src like /webphotos/.../MLS-1-a.jpg
+      const photoMatch = html.match(/class='PHOTO_NEW'[^>]*src='([^']+)'/i)
+        || html.match(/src='([^']*webphotos[^']*)'[^>]*class='PHOTO_NEW'/i);
+      let photoUrl = null;
+      if (photoMatch && !photoMatch[1].includes('nophoto')) {
+        photoUrl = new URL(photoMatch[1], 'https://www.rmlsweb.com').href;
+      }
+
       res.json({
         address,
         price,
@@ -185,6 +193,7 @@ export function createHouseHuntRoutes({ requireAuth, propertiesContainerClient, 
         propertyType,
         style,
         stories,
+        photoUrl,
         sourceUrl: url,
       });
     } catch (error) {

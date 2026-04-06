@@ -156,7 +156,11 @@ function initMap() {
 
 function buildPopup(props) {
   const statusColor = STATUS_COLORS[props.status] || '#cdd6f4';
-  let html = `<div style="font-family:'Segoe UI',system-ui,sans-serif;color:#cdd6f4;background:#181825;padding:10px 12px;border-radius:6px;min-width:200px;max-width:300px;">`;
+  let html = `<div style="font-family:'Segoe UI',system-ui,sans-serif;color:#cdd6f4;background:#181825;border-radius:6px;min-width:200px;max-width:300px;overflow:hidden;">`;
+  if (props.photoUrl) {
+    html += `<img src="${esc(props.photoUrl)}" style="width:100%;height:140px;object-fit:cover;display:block;" />`;
+  }
+  html += `<div style="padding:10px 12px;">`;
   html += `<div style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:${statusColor};margin-bottom:4px;">${props.status}</div>`;
   html += `<div style="font-size:14px;font-weight:600;margin-bottom:6px;">${esc(props.address)}</div>`;
 
@@ -180,7 +184,7 @@ function buildPopup(props) {
     html += `<div style="font-size:12px;"><a href="${esc(props.listingUrl)}" target="_blank" rel="noopener" style="color:#89b4fa;">View listing</a></div>`;
   }
 
-  html += '</div>';
+  html += '</div></div>';
   return html;
 }
 
@@ -281,6 +285,7 @@ function renderProperties() {
           status: prop.status,
           checklist: prop.checklist,
           listingUrl: prop.listingUrl,
+          photoUrl: prop.photoUrl,
           color: STATUS_COLORS[prop.status] || STATUS_COLORS.interested,
         },
       );
@@ -335,6 +340,7 @@ function openAddForm() {
   document.getElementById('form-title').textContent = 'Add Property';
   document.getElementById('form-rmls').value = '';
   document.getElementById('form-address').value = '';
+  pendingPhotoUrl = null;
   document.getElementById('form-status').value = 'interested';
   document.getElementById('form-url').value = '';
   document.getElementById('form-notes').value = '';
@@ -401,6 +407,7 @@ function readFormData() {
     checklist,
     status: document.getElementById('form-status').value,
     listingUrl: document.getElementById('form-url').value.trim(),
+    photoUrl: pendingPhotoUrl || existing?.photoUrl || null,
     addedAt: existing?.addedAt || new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -408,6 +415,7 @@ function readFormData() {
 
 // ── Geocoding (Azure Maps Search API) ──────────────────────
 let previewMarkerPos = null;
+let pendingPhotoUrl = null;
 
 async function geocodeAddress(address) {
   const url = `https://atlas.microsoft.com/search/address/json?api-version=1.0&query=${encodeURIComponent(address)}`;
@@ -486,6 +494,7 @@ function bindEvents() {
         if (geo) setPreviewMarker(geo.lat, geo.lng);
       }
       if (info.sourceUrl) document.getElementById('form-url').value = info.sourceUrl;
+      pendingPhotoUrl = info.photoUrl || null;
       // Build notes from metadata
       const parts = [];
       if (info.price) parts.push(`$${info.price.toLocaleString()}`);
