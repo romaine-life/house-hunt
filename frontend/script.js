@@ -148,6 +148,9 @@ function initMap() {
     map.events.add('mouseleave', pinLayer, () => {
       map.getCanvasContainer().style.cursor = '';
     });
+
+    // Re-render properties in case data loaded before the map was ready
+    renderProperties();
   });
 }
 
