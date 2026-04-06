@@ -384,7 +384,10 @@ async function geocodeAddress(address) {
     const tokenRes = await fetch(`${CONFIG.apiUrl}/maps/token`);
     const { token } = await tokenRes.json();
     const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'x-ms-client-id': CONFIG.mapsClientId,
+      },
     });
     const json = await res.json();
     if (!json.results?.length) return null;
