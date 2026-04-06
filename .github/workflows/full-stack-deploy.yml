@@ -1,0 +1,60 @@
+name: Deploy Frontend
+
+on:
+  push:
+    branches: [main]
+    paths: ["frontend/**"]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  STATIC_WEB_APP_NAME: house-hunt-app
+  RESOURCE_GROUP_NAME: house-hunt-rg
+
+jobs:
+  deploy-frontend:
+    name: Deploy Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login via OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.ARM_CLIENT_ID }}
+          tenant-id: ${{ vars.ARM_TENANT_ID }}
+          subscription-id: ${{ vars.ARM_SUBSCRIPTION_ID }}
+
+      - name: Generate Config
+        run: |
+          export API_URL="https://api.romaine.life/househunt"
+          export MAPS_CLIENT_ID=$(az maps account show \
+            --name house-hunt-maps \
+            --resource-group house-hunt-rg \
+            --query "properties.uniqueId" -o tsv)
+          chmod +x ./frontend/generate-config.sh
+          ./frontend/generate-config.sh
+
+      - name: Get Static Web App Token
+        id: swa-token
+        run: |
+          TOKEN=$(az staticwebapp secrets list \
+            --name ${{ env.STATIC_WEB_APP_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP_NAME }} \
+            --query "properties.apiKey" -o tsv)
+          echo "::add-mask::$TOKEN"
+          echo "deployment_token=$TOKEN" >> $GITHUB_OUTPUT
+
+      - name: Deploy to Azure Static Web App
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ steps.swa-token.outputs.deployment_token }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: "upload"
+          app_location: "./frontend"
+          output_location: ""
+          skip_app_build: true
