@@ -48,6 +48,7 @@ The Maps client ID (`x_ms_client_id`) is injected into `config.js` at deploy tim
       "checklist": { "grassAccessMainLevel": true, "groundLevelBedroom": false },
       "status": "interested|visited|offer|rejected|closed",
       "listingUrl": "https://...",
+      "photoUrl": "https://rmlsweb.com/webphotos/.../MLS-1-a.jpg",
       "addedAt": "ISO",
       "updatedAt": "ISO"
     }
@@ -63,13 +64,14 @@ Checklist schema is admin-editable via `PUT /api/checklist-schema`.
 
 ## Frontend
 
-Static HTML + vanilla JS + Azure Maps SDK (CDN). No build step. Hosted on **GitHub Pages** (not Azure SWA — free tier quota exhausted on the subscription). Full-screen dark-themed map (`grayscale_dark` style) with a collapsible right sidebar for property list and admin form. Colored bubble markers by status (Catppuccin palette). Geocoding via Azure Maps Search API using the same AD token flow.
+Static HTML + vanilla JS + Azure Maps SDK (CDN). No build step. Hosted on **GitHub Pages** (not Azure SWA — free tier quota exhausted on the subscription). Full-screen dark-themed map (`night` style) with a collapsible right sidebar for property list and admin form. Pin markers via SymbolLayer with canvas-generated icons per status color (fixed pixel size at all zoom levels). Geocoding via Azure Maps Search API with `x-ms-client-id` header. RMLS link lookup auto-fills address, metadata, and listing photo.
 
 Deploy workflow pushes to `gh-pages` branch via `peaceiris/actions-gh-pages`. Still uses Azure OIDC login to fetch the Maps client ID from the Azure Maps account at deploy time. DNS CNAME points `househunt.romaine.life` to `nelsong6.github.io`.
 
 ## API Endpoints (mounted at `/househunt` on shared API)
 
 - `GET /maps/token` — public, Azure AD token for Azure Maps
+- `POST /api/rmls-lookup` — public, scrapes RMLS public report URL for address, price, metadata, photo
 - `GET /api/properties` — public, returns all properties + checklist schema
 - `POST /api/properties` — admin, add property
 - `PUT /api/properties/:id` — admin, update property
@@ -89,3 +91,10 @@ Triggers on push to `packages/routes/**`. Auto-bumps patch version, publishes to
 - **Switched from Azure SWA to GitHub Pages** — hit the free SWA quota on the subscription. GitHub Pages has no limit, supports custom domains with HTTPS, and the frontend is just static files with no Azure-native dependencies. Discussed Google Maps vs Azure Maps vs Leaflet — landed on Azure Maps for zero-key infra-native auth.
 - **Full infra rollout** — added `house-hunt` to infra-bootstrap's app module (OIDC, service principal, role assignments). Deployed storage account, Azure Maps account, DNS CNAME, and App Config keys. Mounted `@nelsong6/house-hunt-routes` on the shared API at `/househunt` with blob storage + Azure Maps token callback. Frontend deployed to GitHub Pages at househunt.romaine.life.
 - **Switched auth from terminal-minted JWT to MSAL.js browser login** — Nelson wanted browser-based auth, not terminal-minted. Frontend now uses Microsoft MSAL.js redirect flow. Shared `msAuth` middleware mounted at `/househunt`. Removed terminal auth endpoints (pendingCodes, /auth/code, /auth/callback, /auth/whoami, /auth/logout) from routes package. Admin API calls use Bearer token instead of cookies. Added redirect URIs for househunt.romaine.life and localhost:3003 to the Azure AD app registration.
+- **Map style switched from grayscale_dark to night** — grayscale looked black and white. Night theme has colored roads, water, and parks on a dark background.
+- **RMLS link scraper** — paste an rmlsweb.com public report link, backend scrapes address (from MAPLINK_ADDRESS_FULL class), price, beds/baths/sqft (from BED_BATH summary span), year built, lot size, garage, HOA dues, property type/style, and listing photo (from PHOTO_NEW img tag). Auto-geocodes the address onto the map. Replaced the Redfin MLS# lookup which couldn't find listings.
+- **Pin markers via SymbolLayer** — replaced BubbleLayer (scaled with zoom, invisible at metro level) with canvas-generated pin icons registered in the map's image sprite. Fixed pixel size at all zoom levels. `allowOverlap` + `ignorePlacement` prevent culling.
+- **Fixed pin race condition** — `renderProperties()` ran before the map `ready` event created the datasource. Added re-render call inside the ready handler.
+- **Capped fitBounds maxZoom to 14** — single-point bounds zoomed to max. Now caps at neighborhood level.
+- **Listing photo in popup** — main RMLS photo shown at top of pin popup (140px, cover-fit). Stored as `photoUrl` in property data.
+- **Local dev role assignments** — added Nelson's personal Azure identity as Storage Blob Data Contributor and Azure Maps Data Reader so the local API can access blob storage and mint maps tokens. Added CORS allowed origins to the Maps account.
