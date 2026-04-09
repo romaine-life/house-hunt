@@ -10,9 +10,6 @@ permissions:
   id-token: write
   pages: write
 
-env:
-  RESOURCE_GROUP_NAME: house-hunt-rg
-
 jobs:
   deploy-frontend:
     name: Deploy Frontend
@@ -24,20 +21,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Azure Login via OIDC
-        uses: azure/login@v2
-        with:
-          client-id: ${{ vars.ARM_CLIENT_ID }}
-          tenant-id: ${{ vars.ARM_TENANT_ID }}
-          subscription-id: ${{ vars.ARM_SUBSCRIPTION_ID }}
-
       - name: Generate Config
         run: |
           export API_URL="https://api.romaine.life/househunt"
-          export MAPS_CLIENT_ID=$(az maps account show \
-            --name house-hunt-maps \
-            --resource-group house-hunt-rg \
-            --query "properties.uniqueId" -o tsv)
+          export MAPS_CLIENT_ID="${{ vars.MAPS_CLIENT_ID }}"
           export MICROSOFT_CLIENT_ID="${{ vars.MICROSOFT_CLIENT_ID }}"
           chmod +x ./frontend/generate-config.sh
           ./frontend/generate-config.sh
