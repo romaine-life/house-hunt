@@ -315,7 +315,7 @@ function renderProperties() {
       </div>
     `;
     card.addEventListener('click', () => {
-      map.setCamera({ center: [prop.lng, prop.lat], zoom: 15 });
+      map.setCamera({ center: [prop.lng, prop.lat] });
       // Open popup
       popup.setOptions({
         position: [prop.lng, prop.lat],
