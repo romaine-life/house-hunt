@@ -166,7 +166,10 @@ function buildPopup(props) {
   html += `<a href="${mapsUrl}" target="_blank" style="font-size:14px;font-weight:600;margin-bottom:6px;display:block;color:#89b4fa;text-decoration:none;">${esc(props.address)}</a>`;
 
   if (props.notes) {
-    html += `<div style="font-size:12px;color:#a6adc8;margin-bottom:6px;white-space:pre-wrap;">${esc(props.notes)}</div>`;
+    const notesHtml = esc(props.notes).replace(/MLS#\s*(\d+)/g, (match, id) =>
+      `<a href="https://www.rmlsweb.com/v2/public/report.asp?type=RE&amp;RID=${id}" target="_blank" rel="noopener" style="color:#89b4fa;">${match}</a>`
+    );
+    html += `<div style="font-size:12px;color:#a6adc8;margin-bottom:6px;white-space:pre-wrap;">${notesHtml}</div>`;
   }
 
   const schema = data.checklistSchema;
