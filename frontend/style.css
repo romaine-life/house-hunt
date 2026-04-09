@@ -190,7 +190,7 @@ body {
 fieldset {
   border: 1px solid var(--surface1);
   border-radius: 4px;
-  padding: 10px 12px;
+  padding: 6px 10px;
   margin-bottom: 12px;
 }
 
@@ -203,15 +203,22 @@ fieldset legend {
 .checklist-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 0;
+  gap: 6px;
+  padding: 2px 0;
   font-size: 13px;
 }
 
 .checklist-item input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  flex-shrink: 0;
   accent-color: var(--blue);
+}
+
+.checklist-item label {
+  margin: 0;
+  cursor: pointer;
 }
 
 .form-actions {
