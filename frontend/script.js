@@ -162,7 +162,8 @@ function buildPopup(props) {
   }
   html += `<div style="padding:10px 12px;">`;
   html += `<div style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:${statusColor};margin-bottom:4px;">${props.status}</div>`;
-  html += `<div style="font-size:14px;font-weight:600;margin-bottom:6px;">${esc(props.address)}</div>`;
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(props.address)}`;
+  html += `<a href="${mapsUrl}" target="_blank" style="font-size:14px;font-weight:600;margin-bottom:6px;display:block;color:#89b4fa;text-decoration:none;">${esc(props.address)}</a>`;
 
   if (props.notes) {
     html += `<div style="font-size:12px;color:#a6adc8;margin-bottom:6px;white-space:pre-wrap;">${esc(props.notes)}</div>`;
