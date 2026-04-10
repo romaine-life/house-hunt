@@ -285,6 +285,12 @@ async function saveProperty(prop) {
 }
 
 // Called from popup buttons
+// Expose popup handlers globally for inline onclick in popup HTML
+window.popupEdit = popupEdit;
+window.popupDelete = popupDelete;
+window.popupToggleStar = popupToggleStar;
+window.popupToggleCheck = popupToggleCheck;
+
 function popupEdit(id) {
   popup.close();
   const prop = data.properties.find(p => p.id === id);
