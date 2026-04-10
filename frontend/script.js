@@ -187,13 +187,20 @@ function buildPopup(props) {
   }
 
   const schema = data.checklistSchema;
-  if (schema.length > 0 && props.checklist) {
+  if (schema.length > 0) {
     html += '<ul style="list-style:none;font-size:12px;margin-bottom:6px;padding:0;">';
     for (const item of schema) {
-      const val = props.checklist[item.key];
-      const color = val === true ? '#a6e3a1' : val === false ? '#f38ba8' : '#6c7086';
-      const icon = val === true ? '\u2713' : val === false ? '\u2717' : '\u2014';
-      html += `<li style="padding:1px 0;color:${color};">${icon} ${esc(item.label)}</li>`;
+      const val = props.checklist?.[item.key];
+      if (isAdmin) {
+        const checked = val === true ? 'checked' : '';
+        html += `<li style="padding:2px 0;display:flex;align-items:center;gap:4px;">`;
+        html += `<input type="checkbox" ${checked} onchange="popupToggleCheck('${props.id}','${item.key}',this.checked)" style="width:14px;height:14px;margin:0;accent-color:#89b4fa;cursor:pointer;" />`;
+        html += `<span style="color:#a6adc8;">${esc(item.label)}</span></li>`;
+      } else {
+        const color = val === true ? '#a6e3a1' : val === false ? '#f38ba8' : '#6c7086';
+        const icon = val === true ? '\u2713' : val === false ? '\u2717' : '\u2014';
+        html += `<li style="padding:1px 0;color:${color};">${icon} ${esc(item.label)}</li>`;
+      }
     }
     html += '</ul>';
   }
@@ -279,6 +286,27 @@ function popupEdit(id) {
   popup.close();
   const prop = data.properties.find(p => p.id === id);
   if (prop) editProperty(prop);
+}
+
+async function popupToggleCheck(id, key, checked) {
+  const prop = data.properties.find(p => p.id === id);
+  if (!prop) return;
+  if (!prop.checklist) prop.checklist = {};
+  prop.checklist[key] = checked;
+  try {
+    const res = await fetch(`${CONFIG.apiUrl}/api/properties/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({ property: prop, lastKnownVersion }),
+    });
+    if (res.ok) {
+      const json = await res.json();
+      lastKnownVersion = json.updatedAt || lastKnownVersion;
+    }
+  } catch (err) {
+    console.error('Checklist update error:', err.message);
+  }
+  renderProperties();
 }
 
 function popupDelete(id) {
