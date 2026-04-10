@@ -46,6 +46,7 @@ The Maps client ID (`x_ms_client_id`) is injected into `config.js` at deploy tim
       "lng": -122.676,
       "notes": "freeform text",
       "checklist": { "grassAccessMainLevel": true, "groundLevelBedroom": false },
+      "starred": true,
       "status": "interested|visited|offer|rejected|closed",
       "listingUrl": "https://...",
       "photoUrl": "https://rmlsweb.com/webphotos/.../MLS-1-a.jpg",
@@ -64,9 +65,18 @@ Checklist schema is admin-editable via `PUT /api/checklist-schema`.
 
 ## Frontend
 
-Static HTML + vanilla JS + Azure Maps SDK (CDN). No build step. Hosted on **GitHub Pages** (not Azure SWA — free tier quota exhausted on the subscription). Full-screen dark-themed map (`night` style) with a collapsible right sidebar for property list and admin form. Pin markers via SymbolLayer with canvas-generated icons per status color (fixed pixel size at all zoom levels). Geocoding via Azure Maps Search API with `x-ms-client-id` header. RMLS link lookup auto-fills address, metadata, and listing photo.
+Static HTML + vanilla JS + Azure Maps SDK (CDN). No build step. Hosted on **Azure Static Web App** (Standard tier, `house-hunt-app` in `house-hunt-rg`). Full-screen dark-themed map (`night` style) with a collapsible right sidebar for property list and admin form. Pin markers via SymbolLayer with canvas-generated icons per status color (fixed pixel size at all zoom levels). Geocoding via Azure Maps Search API with `x-ms-client-id` header. RMLS link lookup auto-fills address, metadata, and listing photo.
 
-Deploy workflow pushes to `gh-pages` branch via `peaceiris/actions-gh-pages`. Still uses Azure OIDC login to fetch the Maps client ID from the Azure Maps account at deploy time. DNS CNAME points `househunt.romaine.life` to `nelsong6.github.io`.
+Map popup features: clickable Google Maps address link, MLS# links to Google search, interactive checklist checkboxes (admin-toggleable, disabled for viewers), star/favorite toggle, Edit and Delete buttons for admins. Clicking empty map area dismisses popup. Sidebar has star filter toggle to show only starred properties.
+
+Deploy workflow uses `Azure/static-web-apps-deploy@v1` with SWA deployment token fetched via OIDC. `MAPS_CLIENT_ID` and `MICROSOFT_CLIENT_ID` are GitHub Actions variables — no Azure login needed for config generation. DNS CNAME managed in `tofu/frontend.tf` points `househunt.romaine.life` to the SWA default hostname.
+
+## Import Scripts (`scripts/`)
+
+- `fetch-rmls.py` — Fetch an RMLS complete list page to local HTML for parsing
+- `import-rmls.py` — Full pipeline: fetch RMLS page, parse listings, deduplicate, geocode via Azure Maps, generate photo URLs, upload to blob storage
+- `extract-rmls-links.py` — Search privateemail IMAP for RMLS report links
+- `extract-redfin-links.py` — Search privateemail IMAP for Redfin property links
 
 ## API Endpoints (mounted at `/househunt` on shared API)
 
@@ -98,3 +108,14 @@ Triggers on push to `packages/routes/**`. Auto-bumps patch version, publishes to
 - **Capped fitBounds maxZoom to 14** — single-point bounds zoomed to max. Now caps at neighborhood level.
 - **Listing photo in popup** — main RMLS photo shown at top of pin popup (140px, cover-fit). Stored as `photoUrl` in property data.
 - **Local dev role assignments** — added Nelson's personal Azure identity as Storage Blob Data Contributor and Azure Maps Data Reader so the local API can access blob storage and mint maps tokens. Added CORS allowed origins to the Maps account.
+
+### 2026-04-09
+
+- **Migrated frontend from GitHub Pages to Azure SWA Standard tier** — GitHub Pages was fragile (CNAME deletions, gh-pages branch management, OIDC mismatches with environments). SWA resource, DNS CNAME, and custom domain all managed in tofu. Deploy workflow simplified: no Azure login needed for config (MAPS_CLIENT_ID moved to GitHub variable), uses `Azure/static-web-apps-deploy@v1` with deployment token.
+- **Eliminated gh-pages branch entirely** — first switched to `actions/deploy-pages` (workflow-based GitHub Pages), then moved to SWA. Deleted the gh-pages branch and removed `app_pages_branch` from infra-bootstrap.
+- **Bulk imported 88 RMLS listings** — built `scripts/fetch-rmls.py` to dump RMLS pages locally (WebFetch hangs on large RMLS pages), then parsed HTML for addresses, MLS numbers, prices, sqft. Geocoded via Azure Maps, constructed photo URLs from MLS number directory pattern, uploaded to blob storage. Deduplication against existing properties.
+- **Popup UX overhaul** — address links to Google Maps, MLS# links to Google search, interactive checklist checkboxes (save immediately for admins, disabled for viewers), star/favorite toggle, Edit and Delete buttons in popup for admins. Click empty map to dismiss popup. Close button restyled for visibility.
+- **Star/favorite feature** — admins can star properties from popup. Sidebar header has filter toggle between all/starred view. Starred properties show gold star in sidebar cards. Filter hides non-starred pins from map.
+- **Map behavior fixes** — removed zoom-on-click for sidebar cards (just pans now), fixed fitMapToData only running on initial load instead of every re-render, fixed pin click vs map click event ordering.
+- **Added house favicon** (blue SVG).
+- **Added Microsoft MSAL redirect URI** for `househunt.romaine.life` on the Azure AD app registration (SWA domain wasn't registered after migration from GitHub Pages).
