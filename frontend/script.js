@@ -167,7 +167,7 @@ function buildPopup(props) {
 
   if (props.notes) {
     const notesHtml = esc(props.notes).replace(/MLS#\s*(\d+)/g, (match, id) =>
-      `<a href="https://www.rmlsweb.com/v2/public/report.asp?type=RE&amp;RID=${id}" target="_blank" rel="noopener" style="color:#89b4fa;">${match}</a>`
+      `<a href="https://www.google.com/search?q=${encodeURIComponent(props.address + ' MLS ' + id)}" target="_blank" rel="noopener" style="color:#89b4fa;">${match}</a>`
     );
     html += `<div style="font-size:12px;color:#a6adc8;margin-bottom:6px;white-space:pre-wrap;">${notesHtml}</div>`;
   }
