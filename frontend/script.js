@@ -178,10 +178,10 @@ function buildPopup(props) {
   html += `<div style="padding:10px 12px;">`;
   const starred = props.starred === true;
   const starColor = starred ? '#f9e2af' : '#45475a';
-  const starClick = isAdmin ? `onclick="popupToggleStar('${props.id}')" style="cursor:pointer;"` : '';
+  const starOnClick = isAdmin ? `onclick="popupToggleStar('${props.id}')"` : '';
   html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">`;
   html += `<span style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:${statusColor};">${props.status}</span>`;
-  html += `<span ${starClick} style="font-size:16px;color:${starColor};${isAdmin ? 'cursor:pointer;' : ''}" title="${starred ? 'Unstar' : 'Star'}">${starred ? '\u2605' : '\u2606'}</span>`;
+  html += `<span ${starOnClick} style="font-size:22px;color:${starColor};${isAdmin ? 'cursor:pointer;' : ''}line-height:1;" title="${starred ? 'Unstar' : 'Star'}">${starred ? '\u2605' : '\u2606'}</span>`;
   html += `</div>`;
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(props.address)}`;
   html += `<a href="${mapsUrl}" target="_blank" style="font-size:14px;font-weight:600;margin-bottom:6px;display:block;color:#89b4fa;text-decoration:none;">${esc(props.address)}</a>`;
