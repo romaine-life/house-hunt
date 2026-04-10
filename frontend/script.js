@@ -191,16 +191,12 @@ function buildPopup(props) {
     html += '<ul style="list-style:none;font-size:12px;margin-bottom:6px;padding:0;">';
     for (const item of schema) {
       const val = props.checklist?.[item.key];
-      if (isAdmin) {
-        const checked = val === true ? 'checked' : '';
-        html += `<li style="padding:2px 0;display:flex;align-items:center;gap:4px;">`;
-        html += `<input type="checkbox" ${checked} onchange="popupToggleCheck('${props.id}','${item.key}',this.checked)" style="width:14px;height:14px;margin:0;accent-color:#89b4fa;cursor:pointer;" />`;
-        html += `<span style="color:#a6adc8;">${esc(item.label)}</span></li>`;
-      } else {
-        const color = val === true ? '#a6e3a1' : val === false ? '#f38ba8' : '#6c7086';
-        const icon = val === true ? '\u2713' : val === false ? '\u2717' : '\u2014';
-        html += `<li style="padding:1px 0;color:${color};">${icon} ${esc(item.label)}</li>`;
-      }
+      const checked = val === true ? 'checked' : '';
+      const disabled = isAdmin ? '' : 'disabled';
+      const onChange = isAdmin ? `onchange="popupToggleCheck('${props.id}','${item.key}',this.checked)"` : '';
+      html += `<li style="padding:2px 0;display:flex;align-items:center;gap:4px;">`;
+      html += `<input type="checkbox" ${checked} ${disabled} ${onChange} style="width:14px;height:14px;margin:0;accent-color:#89b4fa;${isAdmin ? 'cursor:pointer;' : ''}" />`;
+      html += `<span style="color:#a6adc8;">${esc(item.label)}</span></li>`;
     }
     html += '</ul>';
   }
