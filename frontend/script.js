@@ -128,8 +128,11 @@ function initMap() {
     // Popup on click
     popup = new atlas.Popup({ closeButton: true, pixelOffset: [0, -32] });
 
+    let pinClicked = false;
+
     map.events.add('click', pinLayer, (e) => {
       if (e.shapes?.length > 0) {
+        pinClicked = true;
         const shape = e.shapes[0];
         const props = shape.getProperties();
         const coords = shape.getCoordinates();
@@ -144,6 +147,10 @@ function initMap() {
 
     // Click on empty map area closes popup
     map.events.add('click', () => {
+      if (pinClicked) {
+        pinClicked = false;
+        return;
+      }
       if (popup.isOpen()) {
         popup.close();
       }
