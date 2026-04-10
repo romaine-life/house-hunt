@@ -9,14 +9,15 @@ on:
 permissions:
   contents: read
   packages: write
+  id-token: write
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '20'
           registry-url: 'https://npm.pkg.github.com'
@@ -33,10 +34,18 @@ jobs:
           npm publish
           echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
-      - name: Trigger API rebuild
-        uses: peter-evans/repository-dispatch@v3
+      - name: Azure Login via OIDC
+        uses: azure/login@v2
         with:
-          token: ${{ secrets.DISPATCH_TOKEN }}
-          repository: nelsong6/api
-          event-type: dependency-updated
-          client-payload: '{"package": "@nelsong6/house-hunt-routes", "version": "${{ steps.publish.outputs.version }}"}'
+          client-id: ${{ vars.ARM_CLIENT_ID }}
+          tenant-id: ${{ vars.ARM_TENANT_ID }}
+          subscription-id: ${{ vars.ARM_SUBSCRIPTION_ID }}
+
+      - name: Trigger API rebuild
+        run: |
+          PAT=$(az keyvault secret show --vault-name ${{ vars.KEY_VAULT_NAME }} --name github-pat --query value -o tsv)
+          curl -s -X POST \
+            -H "Authorization: token $PAT" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/nelsong6/api/dispatches \
+            -d '{"event_type":"dependency-updated","client_payload":{"package":"@nelsong6/house-hunt-routes","version":"${{ steps.publish.outputs.version }}"}}'
