@@ -142,6 +142,13 @@ function initMap() {
       }
     });
 
+    // Click on empty map area closes popup
+    map.events.add('click', () => {
+      if (popup.isOpen()) {
+        popup.close();
+      }
+    });
+
     map.events.add('mousemove', pinLayer, () => {
       map.getCanvasContainer().style.cursor = 'pointer';
     });
