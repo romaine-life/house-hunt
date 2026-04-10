@@ -202,6 +202,13 @@ function buildPopup(props) {
     html += `<div style="font-size:12px;"><a href="${esc(props.listingUrl)}" target="_blank" rel="noopener" style="color:#89b4fa;">View listing</a></div>`;
   }
 
+  if (isAdmin) {
+    html += `<div style="margin-top:8px;display:flex;gap:8px;">`;
+    html += `<button onclick="popupEdit('${props.id}')" style="flex:1;padding:4px 8px;font-size:11px;background:#313244;color:#cdd6f4;border:1px solid #45475a;border-radius:4px;cursor:pointer;">Edit</button>`;
+    html += `<button onclick="popupDelete('${props.id}')" style="padding:4px 8px;font-size:11px;background:transparent;color:#f38ba8;border:1px solid #f38ba8;border-radius:4px;cursor:pointer;">Delete</button>`;
+    html += `</div>`;
+  }
+
   html += '</div></div>';
   return html;
 }
@@ -265,6 +272,19 @@ async function saveProperty(prop) {
   }
 
   renderProperties();
+}
+
+// Called from popup buttons
+function popupEdit(id) {
+  popup.close();
+  const prop = data.properties.find(p => p.id === id);
+  if (prop) editProperty(prop);
+}
+
+function popupDelete(id) {
+  if (!confirm('Delete this property?')) return;
+  popup.close();
+  deleteProperty(id);
 }
 
 async function deleteProperty(id) {
