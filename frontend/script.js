@@ -11,6 +11,7 @@ let data = { properties: [], checklistSchema: [] };
 let lastKnownVersion = null;
 let isAdmin = false;
 let editingId = null; // null = adding, string = editing
+let showStarredOnly = false;
 
 // ── Status colors (Catppuccin) ─────────────────────────────
 const STATUS_COLORS = {
@@ -175,7 +176,13 @@ function buildPopup(props) {
     html += `<img src="${esc(props.photoUrl)}" style="width:100%;height:140px;object-fit:cover;display:block;" />`;
   }
   html += `<div style="padding:10px 12px;">`;
-  html += `<div style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:${statusColor};margin-bottom:4px;">${props.status}</div>`;
+  const starred = props.starred === true;
+  const starColor = starred ? '#f9e2af' : '#45475a';
+  const starClick = isAdmin ? `onclick="popupToggleStar('${props.id}')" style="cursor:pointer;"` : '';
+  html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">`;
+  html += `<span style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:${statusColor};">${props.status}</span>`;
+  html += `<span ${starClick} style="font-size:16px;color:${starColor};${isAdmin ? 'cursor:pointer;' : ''}" title="${starred ? 'Unstar' : 'Star'}">${starred ? '\u2605' : '\u2606'}</span>`;
+  html += `</div>`;
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(props.address)}`;
   html += `<a href="${mapsUrl}" target="_blank" style="font-size:14px;font-weight:600;margin-bottom:6px;display:block;color:#89b4fa;text-decoration:none;">${esc(props.address)}</a>`;
 
@@ -305,6 +312,29 @@ async function popupToggleCheck(id, key, checked) {
   renderProperties();
 }
 
+async function popupToggleStar(id) {
+  const prop = data.properties.find(p => p.id === id);
+  if (!prop) return;
+  prop.starred = !prop.starred;
+  try {
+    const res = await fetch(`${CONFIG.apiUrl}/api/properties/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({ property: prop, lastKnownVersion }),
+    });
+    if (res.ok) {
+      const json = await res.json();
+      lastKnownVersion = json.updatedAt || lastKnownVersion;
+    }
+  } catch (err) {
+    console.error('Star toggle error:', err.message);
+  }
+  // Refresh popup content
+  const coords = popup.getOptions().position;
+  popup.setOptions({ content: buildPopup(prop) });
+  renderProperties();
+}
+
 function popupDelete(id) {
   if (!confirm('Delete this property?')) return;
   popup.close();
@@ -333,10 +363,12 @@ async function deleteProperty(id) {
 
 // ── Render ─────────────────────────────────────────────────
 function renderProperties() {
+  const filtered = showStarredOnly ? data.properties.filter(p => p.starred) : data.properties;
+
   // Update map datasource
   if (datasource) {
     datasource.clear();
-    for (const prop of data.properties) {
+    for (const prop of filtered) {
       const feature = new atlas.data.Feature(
         new atlas.data.Point([prop.lng, prop.lat]),
         {
@@ -345,6 +377,7 @@ function renderProperties() {
           shortAddress: prop.address.split(',')[0],
           notes: prop.notes,
           status: prop.status,
+          starred: prop.starred,
           checklist: prop.checklist,
           listingUrl: prop.listingUrl,
           photoUrl: prop.photoUrl,
@@ -356,21 +389,29 @@ function renderProperties() {
     fitMapToData();
   }
 
+  // Star filter toggle
+  const starToggle = document.getElementById('star-filter');
+  if (starToggle) {
+    starToggle.style.color = showStarredOnly ? '#f9e2af' : '#6c7086';
+    starToggle.textContent = showStarredOnly ? '\u2605 Starred' : '\u2606 All';
+  }
+
   // Sidebar list
   const container = document.getElementById('properties');
   container.innerHTML = '';
 
-  if (data.properties.length === 0) {
+  if (filtered.length === 0) {
     container.innerHTML = '<p style="color:var(--subtext0);font-size:13px;">No properties yet.</p>';
     return;
   }
 
-  for (const prop of data.properties) {
+  for (const prop of filtered) {
     const card = document.createElement('div');
     card.className = 'property-card';
     card.dataset.id = prop.id;
+    const starIcon = prop.starred ? '\u2605' : '';
     card.innerHTML = `
-      <div class="address">${esc(prop.address)}</div>
+      <div class="address">${starIcon ? `<span style="color:#f9e2af;margin-right:4px;">${starIcon}</span>` : ''}${esc(prop.address)}</div>
       <div class="meta">
         <span class="status-dot ${prop.status}"></span>
         <span>${prop.status}</span>
@@ -531,6 +572,11 @@ function bindEvents() {
   document.getElementById('login-btn').addEventListener('click', login);
   document.getElementById('logout-btn').addEventListener('click', logout);
   document.getElementById('add-btn').addEventListener('click', openAddForm);
+
+  document.getElementById('star-filter').addEventListener('click', () => {
+    showStarredOnly = !showStarredOnly;
+    renderProperties();
+  });
 
   document.getElementById('rmls-btn').addEventListener('click', async () => {
     const rmlsUrl = document.getElementById('form-rmls').value.trim();
