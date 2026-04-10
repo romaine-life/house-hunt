@@ -392,7 +392,10 @@ function renderProperties() {
       );
       datasource.add(feature);
     }
-    fitMapToData();
+    if (!window._initialFitDone) {
+      fitMapToData();
+      window._initialFitDone = true;
+    }
   }
 
   // Star filter toggle
