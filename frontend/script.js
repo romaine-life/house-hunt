@@ -796,6 +796,9 @@ function bindEvents() {
       exitSelectionMode();
       renderProperties();
     }
+    if (e.key === 'Delete' && isAdmin && selectedIds.size > 0) {
+      bulkDeleteProperties();
+    }
   });
   document.addEventListener('keyup', (e) => {
     if (e.key === 'Shift' && !selectionLocked) {
