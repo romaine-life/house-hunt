@@ -120,6 +120,12 @@ def parse_listings(html):
     # Photo URL directory from JavaScript: photourls['photoNNN']="dir/";
     photo_dir_pattern = re.compile(r"photourls\['photo\d+'\]=\"([^\"]+)\"")
 
+    # Per-listing RMLS report link from PhotoViewer onclick:
+    #   linkPhotoViewerMLN_NNN' onclick="PhotoViewer('?CRPT2=TOKEN..."
+    listing_link_pattern = re.compile(
+        r"linkPhotoViewerMLN_(\d+)'[^>]*onclick=\"PhotoViewer\('\?CRPT2=([A-Za-z0-9+/=]+)"
+    )
+
     for i, mls_match in enumerate(mls_matches):
         mls_id = mls_match.group(1)
 
@@ -169,6 +175,13 @@ def parse_listings(html):
         else:
             photo_url = rmls_photo_url(mls_id)
 
+        # Per-listing RMLS report link (extracted from PhotoViewer CRPT2 token)
+        listing_m = listing_link_pattern.search(section)
+        if listing_m:
+            listing_url = f"https://www.rmlsweb.com/v2/public/report.asp?CRPT2={listing_m.group(2)}"
+        else:
+            listing_url = ""
+
         listings.append({
             "address": address,
             "mls": mls_id,
@@ -179,6 +192,7 @@ def parse_listings(html):
             "baths": baths,
             "sqft": sqft,
             "photoUrl": photo_url,
+            "listingUrl": listing_url,
         })
 
     return listings
@@ -306,7 +320,7 @@ def main():
                 "notes": build_notes(l),
                 "checklist": {},
                 "status": "interested",
-                "listingUrl": "",
+                "listingUrl": l.get("listingUrl", ""),
                 "photoUrl": l["photoUrl"],
                 "addedAt": now,
                 "updatedAt": now,
