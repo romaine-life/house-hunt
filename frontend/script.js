@@ -623,7 +623,7 @@ function clearPreviewMarker() {
 function enterSelectionMode() {
   if (selectionMode) return;
   selectionMode = true;
-  map.setUserInteraction({ dragPanInteraction: false });
+  map.setUserInteraction({ dragPanInteraction: false, boxZoomInteraction: false, dragRotateInteraction: false });
   map.getCanvasContainer().style.cursor = 'crosshair';
   document.getElementById('select-mode-btn').classList.add('active');
 }
@@ -631,7 +631,7 @@ function enterSelectionMode() {
 function exitSelectionMode() {
   if (!selectionMode) return;
   selectionMode = false;
-  map.setUserInteraction({ dragPanInteraction: true });
+  map.setUserInteraction({ dragPanInteraction: true, boxZoomInteraction: true, dragRotateInteraction: true });
   map.getCanvasContainer().style.cursor = '';
   document.getElementById('select-mode-btn').classList.remove('active');
 }
