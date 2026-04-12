@@ -287,6 +287,36 @@ export function createHouseHuntRoutes({ requireAuth, propertiesContainerClient, 
     }
   });
 
+  // ── Admin: bulk delete properties ────────────────────────────────
+
+  router.delete('/api/properties', requireAuth, async (req, res) => {
+    try {
+      const { ids, lastKnownVersion } = req.body || {};
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: 'ids array required' });
+      }
+
+      const { data } = await readBlob();
+      const idSet = new Set(ids);
+      const before = data.properties.length;
+      const deleted = [];
+      data.properties = data.properties.filter(p => {
+        if (idSet.has(p.id)) { deleted.push(p.id); return false; }
+        return true;
+      });
+      const notFound = ids.filter(id => !deleted.includes(id));
+
+      const result = await writeBlob(data, lastKnownVersion);
+      if (result.conflict) {
+        return res.status(409).json({ error: 'Conflict', current: result.current.data });
+      }
+      res.json({ deleted, notFound, updatedAt: result.updatedAt });
+    } catch (error) {
+      console.error('Error bulk deleting properties:', error);
+      res.status(500).json({ error: 'Failed to bulk delete properties' });
+    }
+  });
+
   // ── Admin: update checklist schema ──────────────────────────────
 
   router.put('/api/checklist-schema', requireAuth, async (req, res) => {

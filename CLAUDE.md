@@ -67,14 +67,14 @@ Checklist schema is admin-editable via `PUT /api/checklist-schema`.
 
 Static HTML + vanilla JS + Azure Maps SDK (CDN). No build step. Hosted on **Azure Static Web App** (Standard tier, `house-hunt-app` in `house-hunt-rg`). Full-screen dark-themed map (`night` style) with a collapsible right sidebar for property list and admin form. Pin markers via SymbolLayer with canvas-generated icons per status color (fixed pixel size at all zoom levels). Geocoding via Azure Maps Search API with `x-ms-client-id` header. RMLS link lookup auto-fills address, metadata, and listing photo.
 
-Map popup features: clickable Google Maps address link, MLS# links to Google search, interactive checklist checkboxes (admin-toggleable, disabled for viewers), star/favorite toggle, Edit and Delete buttons for admins. Clicking empty map area dismisses popup. Sidebar has star filter toggle to show only starred properties.
+Map popup features: clickable Google Maps address link, MLS# links to Google search, interactive checklist checkboxes (admin-toggleable, disabled for viewers), star/favorite toggle, Edit and Delete buttons for admins. Clicking empty map area dismisses popup. Sidebar has star filter toggle to show only starred properties. Bulk select + delete: admin toggle button or Shift-hold enters selection mode (disables map panning, crosshair cursor), click-drag draws rectangle to select pins inside it, click individual pins to toggle. Selected pins render with white outline via `pin-selected-{status}` sprites. Sidebar shows checkboxes on cards and selection bar with count/All/None/Delete buttons. Escape clears selection.
 
 Deploy workflow uses `Azure/static-web-apps-deploy@v1` with SWA deployment token fetched via OIDC. `MAPS_CLIENT_ID` and `MICROSOFT_CLIENT_ID` are GitHub Actions variables — no Azure login needed for config generation. DNS CNAME managed in `tofu/frontend.tf` points `househunt.romaine.life` to the SWA default hostname.
 
 ## Import Scripts (`scripts/`)
 
 - `fetch-rmls.py` — Fetch an RMLS complete list page to local HTML for parsing
-- `import-rmls.py` — Full pipeline: fetch RMLS page, parse listings, deduplicate, geocode via Azure Maps, generate photo URLs, upload to blob storage
+- `import-rmls.py` — Full pipeline: fetch or read local RMLS HTML, parse listings (extracts lat/lon from embedded `MGS_ShowMap_Ex` JS — no geocoding needed), deduplicate against blob storage, generate photo URLs, upload. Supports `--dry-run` and local file input.
 - `extract-rmls-links.py` — Search privateemail IMAP for RMLS report links
 - `extract-redfin-links.py` — Search privateemail IMAP for Redfin property links
 
@@ -86,6 +86,7 @@ Deploy workflow uses `Azure/static-web-apps-deploy@v1` with SWA deployment token
 - `POST /api/properties` — admin, add property
 - `PUT /api/properties/:id` — admin, update property
 - `DELETE /api/properties/:id` — admin, delete property
+- `DELETE /api/properties` — admin, bulk delete properties (body: `{ ids, lastKnownVersion }`)
 - `PUT /api/checklist-schema` — admin, update checklist items
 - `POST /auth/microsoft/login` — shared msAuth (verify Microsoft ID token, issue JWT)
 
@@ -119,3 +120,8 @@ Triggers on push to `packages/routes/**`. Auto-bumps patch version, publishes to
 - **Map behavior fixes** — removed zoom-on-click for sidebar cards (just pans now), fixed fitMapToData only running on initial load instead of every re-render, fixed pin click vs map click event ordering.
 - **Added house favicon** (blue SVG).
 - **Added Microsoft MSAL redirect URI** for `househunt.romaine.life` on the Azure AD app registration (SWA domain wasn't registered after migration from GitHub Pages).
+
+### 2026-04-12
+
+- **Bulk select + delete** — admin-only rectangle drag-select on the map for bulk property deletion. Toggle selection mode via "Select" button in sidebar or hold Shift. Draw a rectangle to select pins inside it; click individual pins to toggle selection. Sidebar shows checkboxes and selection count bar with All/None/Delete buttons. Selected pins render with white outline via `pin-selected-{status}` icon sprites. New `DELETE /api/properties` bulk endpoint performs single blob read-modify-write for all IDs at once. Escape clears selection. Star filter change clears selection.
+- **Improved RMLS import script** — rewrote `scripts/import-rmls.py` parser to match actual RMLS HTML format: extracts lat/lon directly from `MGS_ShowMap_Ex` JavaScript calls (eliminates geocoding step entirely), parses `BED_BATH` and `PRICE` spans, reads photo directory from `photourls` JavaScript. Accepts local HTML files. Added `--dry-run` mode, progress output, `shell=True` for Windows `az.cmd` compatibility. Imported 122 new listings (210 total).

@@ -10,6 +10,7 @@
 </head>
 <body>
   <div id="map"></div>
+  <div id="select-rect" class="hidden"></div>
 
   <div id="sidebar" class="collapsed">
     <button id="sidebar-toggle" title="Toggle sidebar">&lsaquo;</button>
@@ -24,7 +25,16 @@
       <div id="property-list">
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <h2>Properties</h2>
-          <button id="star-filter" style="background:none;border:none;font-size:14px;color:#6c7086;cursor:pointer;padding:4px 8px;">&#9734; All</button>
+          <div style="display:flex;gap:4px;align-items:center;">
+            <button id="select-mode-btn" class="hidden" title="Selection mode (hold Shift)">&#9744; Select</button>
+            <button id="star-filter" style="background:none;border:none;font-size:14px;color:#6c7086;cursor:pointer;padding:4px 8px;">&#9734; All</button>
+          </div>
+        </div>
+        <div id="selection-bar" class="hidden">
+          <span id="selection-count">0 selected</span>
+          <button id="select-all-btn" class="small-btn">All</button>
+          <button id="select-none-btn" class="small-btn">None</button>
+          <button id="bulk-delete-btn" class="danger-btn">Delete Selected</button>
         </div>
         <div id="properties"></div>
         <button id="add-btn" class="primary-btn hidden">+ Add Property</button>

@@ -290,6 +290,59 @@ fieldset legend {
 .danger-btn:hover { background: var(--red); color: var(--crust); }
 
 
+/* ── Selection ─────────────────────────────────────────── */
+
+#select-rect {
+  position: absolute;
+  border: 2px dashed var(--blue);
+  background: rgba(137, 180, 250, 0.15);
+  pointer-events: none;
+  z-index: 500;
+}
+
+#select-mode-btn {
+  background: none;
+  border: 1px solid var(--surface1);
+  color: var(--subtext0);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+
+#select-mode-btn:hover { border-color: var(--blue); color: var(--text); }
+#select-mode-btn.active { border-color: var(--blue); color: var(--blue); background: rgba(137, 180, 250, 0.1); }
+
+#selection-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  background: var(--surface0);
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+#selection-bar #selection-count { flex: 1; color: var(--blue); font-weight: 600; }
+#selection-bar .danger-btn { margin-left: 0; font-size: 12px; padding: 4px 10px; }
+#selection-bar .small-btn { font-size: 12px; padding: 4px 8px; }
+
+.property-card.selected {
+  border-left: 3px solid var(--blue);
+  background: rgba(137, 180, 250, 0.1);
+}
+
+.property-card .select-check {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--blue);
+  margin-right: 8px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
 /* ── Utilities ──────────────────────────────────────────── */
 
 .hidden { display: none !important; }

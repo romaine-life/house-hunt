@@ -12,6 +12,9 @@ let lastKnownVersion = null;
 let isAdmin = false;
 let editingId = null; // null = adding, string = editing
 let showStarredOnly = false;
+let selectionMode = false;
+let selectionLocked = false; // button toggle vs shift-hold
+let selectedIds = new Set();
 
 // ── Status colors (Catppuccin) ─────────────────────────────
 const STATUS_COLORS = {
@@ -38,6 +41,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('logout-btn').classList.remove('hidden');
     if (isAdmin) {
       document.getElementById('add-btn').classList.remove('hidden');
+      document.getElementById('select-mode-btn').classList.remove('hidden');
     }
   }
 
@@ -76,7 +80,7 @@ function initMap() {
     map.sources.add(datasource);
 
     // Create pin icons for each status color — await all before adding layers
-    const iconPromises = Object.entries(STATUS_COLORS).map(([status, color]) => {
+    function drawPin(color, selected) {
       const canvas = document.createElement('canvas');
       const s = 2; // scale for retina
       canvas.width = 24 * s;
@@ -91,22 +95,27 @@ function initMap() {
       ctx.bezierCurveTo(24, 22, 12, 36, 12, 36);
       ctx.fillStyle = color;
       ctx.fill();
-      ctx.strokeStyle = '#11111b';
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = selected ? '#cdd6f4' : '#11111b';
+      ctx.lineWidth = selected ? 3 : 2;
       ctx.stroke();
       // Inner dot
       ctx.beginPath();
       ctx.arc(12, 13, 5, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(17,17,27,0.3)';
+      ctx.fillStyle = selected ? 'rgba(205,214,244,0.5)' : 'rgba(17,17,27,0.3)';
       ctx.fill();
-      return map.imageSprite.add(`pin-${status}`, canvas.toDataURL());
-    });
+      return canvas.toDataURL();
+    }
+
+    const iconPromises = Object.entries(STATUS_COLORS).flatMap(([status, color]) => [
+      map.imageSprite.add(`pin-${status}`, drawPin(color, false)),
+      map.imageSprite.add(`pin-selected-${status}`, drawPin(color, true)),
+    ]);
     await Promise.all(iconPromises);
 
     // Symbol layer — fixed pixel size regardless of zoom
     const pinLayer = new atlas.layer.SymbolLayer(datasource, null, {
       iconOptions: {
-        image: ['concat', 'pin-', ['get', 'status']],
+        image: ['concat', 'pin-', ['case', ['get', 'selected'], 'selected-', ''], ['get', 'status']],
         size: 0.5,
         anchor: 'bottom',
         allowOverlap: true,
@@ -132,6 +141,17 @@ function initMap() {
     let pinClicked = false;
 
     map.events.add('click', pinLayer, (e) => {
+      if (selectionMode) {
+        // In selection mode, click pin to toggle selection
+        if (e.shapes?.length > 0) {
+          pinClicked = true;
+          const id = e.shapes[0].getProperties().id;
+          if (selectedIds.has(id)) selectedIds.delete(id);
+          else selectedIds.add(id);
+          renderProperties();
+        }
+        return;
+      }
       if (e.shapes?.length > 0) {
         pinClicked = true;
         const shape = e.shapes[0];
@@ -152,17 +172,21 @@ function initMap() {
         pinClicked = false;
         return;
       }
+      if (selectionMode) return;
       if (popup.isOpen()) {
         popup.close();
       }
     });
 
     map.events.add('mousemove', pinLayer, () => {
-      map.getCanvasContainer().style.cursor = 'pointer';
+      if (!selectionMode) map.getCanvasContainer().style.cursor = 'pointer';
     });
     map.events.add('mouseleave', pinLayer, () => {
-      map.getCanvasContainer().style.cursor = '';
+      if (!selectionMode) map.getCanvasContainer().style.cursor = '';
     });
+
+    // ── Rectangle drag-select ──────────────────────────────
+    initRectangleSelect();
 
     // Re-render properties in case data loaded before the map was ready
     renderProperties();
@@ -388,6 +412,7 @@ function renderProperties() {
           listingUrl: prop.listingUrl,
           photoUrl: prop.photoUrl,
           color: STATUS_COLORS[prop.status] || STATUS_COLORS.interested,
+          selected: selectedIds.has(prop.id),
         },
       );
       datasource.add(feature);
@@ -395,6 +420,17 @@ function renderProperties() {
     if (!window._initialFitDone) {
       fitMapToData();
       window._initialFitDone = true;
+    }
+  }
+
+  // Selection bar
+  const selBar = document.getElementById('selection-bar');
+  if (selBar) {
+    if (selectedIds.size > 0) {
+      selBar.classList.remove('hidden');
+      document.getElementById('selection-count').textContent = `${selectedIds.size} selected`;
+    } else {
+      selBar.classList.add('hidden');
     }
   }
 
@@ -414,21 +450,32 @@ function renderProperties() {
     return;
   }
 
+  const hasSelection = selectedIds.size > 0;
   for (const prop of filtered) {
     const card = document.createElement('div');
-    card.className = 'property-card';
+    card.className = 'property-card' + (selectedIds.has(prop.id) ? ' selected' : '');
     card.dataset.id = prop.id;
     const starIcon = prop.starred ? '\u2605' : '';
+    const checkHtml = (selectionMode || hasSelection) && isAdmin
+      ? `<input type="checkbox" class="select-check" ${selectedIds.has(prop.id) ? 'checked' : ''} />`
+      : '';
     card.innerHTML = `
-      <div class="address">${starIcon ? `<span style="color:#f9e2af;margin-right:4px;">${starIcon}</span>` : ''}${esc(prop.address)}</div>
+      <div class="address" style="display:flex;align-items:center;">${checkHtml}${starIcon ? `<span style="color:#f9e2af;margin-right:4px;">${starIcon}</span>` : ''}${esc(prop.address)}</div>
       <div class="meta">
         <span class="status-dot ${prop.status}"></span>
         <span>${prop.status}</span>
       </div>
     `;
-    card.addEventListener('click', () => {
+    card.addEventListener('click', (e) => {
+      // If clicking checkbox or in selection mode, toggle selection
+      if (e.target.classList.contains('select-check') || (selectionMode && isAdmin)) {
+        e.preventDefault();
+        if (selectedIds.has(prop.id)) selectedIds.delete(prop.id);
+        else selectedIds.add(prop.id);
+        renderProperties();
+        return;
+      }
       map.setCamera({ center: [prop.lng, prop.lat] });
-      // Open popup
       popup.setOptions({
         position: [prop.lng, prop.lat],
         content: buildPopup(prop),
@@ -572,6 +619,138 @@ function clearPreviewMarker() {
   previewMarkerPos = null;
 }
 
+// ── Selection mode ─────────────────────────────────────────
+function enterSelectionMode() {
+  if (selectionMode) return;
+  selectionMode = true;
+  map.setUserInteraction({ dragPanInteraction: false });
+  map.getCanvasContainer().style.cursor = 'crosshair';
+  document.getElementById('select-mode-btn').classList.add('active');
+}
+
+function exitSelectionMode() {
+  if (!selectionMode) return;
+  selectionMode = false;
+  map.setUserInteraction({ dragPanInteraction: true });
+  map.getCanvasContainer().style.cursor = '';
+  document.getElementById('select-mode-btn').classList.remove('active');
+}
+
+function initRectangleSelect() {
+  const container = map.getCanvasContainer();
+  const rectEl = document.getElementById('select-rect');
+  let dragging = false;
+  let startX = 0, startY = 0;
+
+  container.addEventListener('mousedown', (e) => {
+    if (!selectionMode || e.button !== 0) return;
+    const rect = container.getBoundingClientRect();
+    startX = e.clientX - rect.left;
+    startY = e.clientY - rect.top;
+    dragging = true;
+    rectEl.style.left = (e.clientX) + 'px';
+    rectEl.style.top = (e.clientY) + 'px';
+    rectEl.style.width = '0';
+    rectEl.style.height = '0';
+    rectEl.classList.remove('hidden');
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    const rect = container.getBoundingClientRect();
+    const curX = e.clientX - rect.left;
+    const curY = e.clientY - rect.top;
+    const left = Math.min(startX, curX) + rect.left;
+    const top = Math.min(startY, curY) + rect.top;
+    const w = Math.abs(curX - startX);
+    const h = Math.abs(curY - startY);
+    rectEl.style.left = left + 'px';
+    rectEl.style.top = top + 'px';
+    rectEl.style.width = w + 'px';
+    rectEl.style.height = h + 'px';
+  });
+
+  document.addEventListener('mouseup', (e) => {
+    if (!dragging) return;
+    dragging = false;
+    rectEl.classList.add('hidden');
+
+    const rect = container.getBoundingClientRect();
+    const endX = e.clientX - rect.left;
+    const endY = e.clientY - rect.top;
+    const minX = Math.min(startX, endX);
+    const maxX = Math.max(startX, endX);
+    const minY = Math.min(startY, endY);
+    const maxY = Math.max(startY, endY);
+
+    // Ignore tiny drags (just a click)
+    if (maxX - minX < 5 && maxY - minY < 5) return;
+
+    // Hit test: which properties fall inside the rectangle?
+    const filtered = showStarredOnly ? data.properties.filter(p => p.starred) : data.properties;
+    const positions = filtered.map(p => [p.lng, p.lat]);
+    if (positions.length === 0) return;
+
+    const pixels = map.positionsToPixels(positions);
+
+    // If not holding shift with the button toggle, replace selection
+    if (selectionLocked && !e.shiftKey) {
+      selectedIds.clear();
+    }
+
+    for (let i = 0; i < pixels.length; i++) {
+      const px = pixels[i][0];
+      const py = pixels[i][1];
+      if (px >= minX && px <= maxX && py >= minY && py <= maxY) {
+        selectedIds.add(filtered[i].id);
+      }
+    }
+
+    renderProperties();
+  });
+}
+
+async function bulkDeleteProperties() {
+  const ids = [...selectedIds];
+  if (ids.length === 0) return;
+  if (!confirm(`Delete ${ids.length} properties? This cannot be undone.`)) return;
+
+  // Optimistic local removal
+  const idsSet = new Set(ids);
+  data.properties = data.properties.filter(p => !idsSet.has(p.id));
+  selectedIds.clear();
+  renderProperties();
+
+  try {
+    const res = await fetch(`${CONFIG.apiUrl}/api/properties`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({ ids, lastKnownVersion }),
+    });
+    if (res.ok) {
+      const json = await res.json();
+      lastKnownVersion = json.updatedAt || lastKnownVersion;
+      if (json.notFound?.length > 0) {
+        console.warn('Some properties were already deleted:', json.notFound);
+      }
+    } else if (res.status === 409) {
+      await loadProperties();
+      renderProperties();
+      alert('Data was modified by another session. Properties have been refreshed.');
+    } else {
+      console.error('Bulk delete failed:', res.status);
+      await loadProperties();
+      renderProperties();
+      alert('Bulk delete failed. Properties have been refreshed.');
+    }
+  } catch (err) {
+    console.error('Bulk delete error:', err.message);
+    await loadProperties();
+    renderProperties();
+    alert('Network error during bulk delete. Properties have been refreshed.');
+  }
+}
+
 // ── Events ─────────────────────────────────────────────────
 function bindEvents() {
   document.getElementById('sidebar-toggle').addEventListener('click', () => {
@@ -582,8 +761,51 @@ function bindEvents() {
   document.getElementById('logout-btn').addEventListener('click', logout);
   document.getElementById('add-btn').addEventListener('click', openAddForm);
 
+  // Selection mode toggle button
+  document.getElementById('select-mode-btn').addEventListener('click', () => {
+    selectionLocked = !selectionLocked;
+    if (selectionLocked) {
+      enterSelectionMode();
+    } else {
+      exitSelectionMode();
+      selectedIds.clear();
+      renderProperties();
+    }
+  });
+
+  // Selection bar buttons
+  document.getElementById('select-all-btn').addEventListener('click', () => {
+    const filtered = showStarredOnly ? data.properties.filter(p => p.starred) : data.properties;
+    for (const p of filtered) selectedIds.add(p.id);
+    renderProperties();
+  });
+  document.getElementById('select-none-btn').addEventListener('click', () => {
+    selectedIds.clear();
+    renderProperties();
+  });
+  document.getElementById('bulk-delete-btn').addEventListener('click', () => bulkDeleteProperties());
+
+  // Shift key for temporary selection mode
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Shift' && isAdmin && !selectionLocked) {
+      enterSelectionMode();
+    }
+    if (e.key === 'Escape') {
+      selectedIds.clear();
+      selectionLocked = false;
+      exitSelectionMode();
+      renderProperties();
+    }
+  });
+  document.addEventListener('keyup', (e) => {
+    if (e.key === 'Shift' && !selectionLocked) {
+      exitSelectionMode();
+    }
+  });
+
   document.getElementById('star-filter').addEventListener('click', () => {
     showStarredOnly = !showStarredOnly;
+    selectedIds.clear();
     renderProperties();
   });
 
