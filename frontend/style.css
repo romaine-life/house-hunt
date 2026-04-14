@@ -314,6 +314,39 @@ fieldset legend {
 #select-mode-btn:hover { border-color: var(--blue); color: var(--text); }
 #select-mode-btn.active { border-color: var(--blue); color: var(--blue); background: rgba(137, 180, 250, 0.1); }
 
+#vernonia-filters {
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  background: var(--surface0);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--subtext0);
+}
+
+#vernonia-filters label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  white-space: nowrap;
+}
+
+#vernonia-filters label:last-child { margin-bottom: 0; }
+
+#vernonia-filters input[type="range"] {
+  flex: 1;
+  height: 4px;
+  accent-color: var(--blue);
+  cursor: pointer;
+}
+
+#vernonia-filters span {
+  color: var(--teal);
+  font-weight: 600;
+  min-width: 20px;
+  text-align: right;
+}
+
 #selection-bar {
   display: flex;
   align-items: center;

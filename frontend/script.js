@@ -15,6 +15,8 @@ let showStarredOnly = false;
 let selectionMode = false;
 let selectionLocked = false; // button toggle vs shift-hold
 let selectedIds = new Set();
+let maxDistanceMi = Infinity;
+let maxCommuteMin = Infinity;
 
 // ── Status colors (Catppuccin) ─────────────────────────────
 const STATUS_COLORS = {
@@ -29,6 +31,7 @@ const STATUS_COLORS = {
 document.addEventListener('DOMContentLoaded', async () => {
   initMap();
   await loadProperties();
+  initVernoniaSliders();
   renderProperties();
 
   const authed = await initAuth();
@@ -401,7 +404,12 @@ async function deleteProperty(id) {
 
 // ── Render ─────────────────────────────────────────────────
 function renderProperties() {
-  const filtered = showStarredOnly ? data.properties.filter(p => p.starred) : data.properties;
+  const filtered = (showStarredOnly ? data.properties.filter(p => p.starred) : [...data.properties])
+    .filter(p => {
+      if (p.vernoniaDistanceMi != null && p.vernoniaDistanceMi > maxDistanceMi) return false;
+      if (p.vernoniaCommuteMin != null && p.vernoniaCommuteMin > maxCommuteMin) return false;
+      return true;
+    });
 
   // Update map datasource
   if (datasource) {
@@ -644,6 +652,26 @@ function clearPreviewMarker() {
   previewMarkerPos = null;
 }
 
+// ── Vernonia filter sliders ────────────────────────────────
+function initVernoniaSliders() {
+  const dists = data.properties.map(p => p.vernoniaDistanceMi).filter(v => v != null);
+  const times = data.properties.map(p => p.vernoniaCommuteMin).filter(v => v != null);
+  if (!dists.length) return;
+
+  const maxDist = Math.ceil(Math.max(...dists) / 5) * 5;
+  const maxTime = Math.ceil(Math.max(...times) / 5) * 5;
+
+  const distSlider = document.getElementById('dist-slider');
+  const timeSlider = document.getElementById('time-slider');
+  distSlider.min = 0; distSlider.max = maxDist; distSlider.value = maxDist;
+  timeSlider.min = 0; timeSlider.max = maxTime; timeSlider.value = maxTime;
+  maxDistanceMi = maxDist;
+  maxCommuteMin = maxTime;
+
+  document.getElementById('dist-val').textContent = maxDist;
+  document.getElementById('time-val').textContent = maxTime;
+}
+
 // ── Selection mode ─────────────────────────────────────────
 function enterSelectionMode() {
   if (selectionMode) return;
@@ -787,6 +815,18 @@ function bindEvents() {
   document.getElementById('add-btn').addEventListener('click', openAddForm);
 
   // Selection mode toggle button
+  // Vernonia filter sliders
+  document.getElementById('dist-slider').addEventListener('input', (e) => {
+    maxDistanceMi = Number(e.target.value);
+    document.getElementById('dist-val').textContent = maxDistanceMi;
+    renderProperties();
+  });
+  document.getElementById('time-slider').addEventListener('input', (e) => {
+    maxCommuteMin = Number(e.target.value);
+    document.getElementById('time-val').textContent = maxCommuteMin;
+    renderProperties();
+  });
+
   document.getElementById('select-mode-btn').addEventListener('click', () => {
     selectionLocked = !selectionLocked;
     if (selectionLocked) {
