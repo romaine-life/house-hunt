@@ -217,6 +217,10 @@ function buildPopup(props) {
     html += `<div style="font-size:12px;color:#a6adc8;margin-bottom:6px;white-space:pre-wrap;">${notesHtml}</div>`;
   }
 
+  if (props.vernoniaCommuteMin) {
+    html += `<div style="font-size:12px;color:#94e2d5;margin-bottom:6px;">&#x1F697; ${props.vernoniaDistanceMi} mi / ${props.vernoniaCommuteMin} min to Vernonia</div>`;
+  }
+
   const schema = data.checklistSchema;
   if (schema.length > 0) {
     html += '<ul style="list-style:none;font-size:12px;margin-bottom:6px;padding:0;">';
@@ -411,6 +415,8 @@ function renderProperties() {
           checklist: prop.checklist,
           listingUrl: prop.listingUrl,
           photoUrl: prop.photoUrl,
+          vernoniaDistanceMi: prop.vernoniaDistanceMi,
+          vernoniaCommuteMin: prop.vernoniaCommuteMin,
           color: STATUS_COLORS[prop.status] || STATUS_COLORS.interested,
           selected: selectedIds.has(prop.id),
         },
