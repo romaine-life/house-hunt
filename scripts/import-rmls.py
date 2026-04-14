@@ -22,7 +22,6 @@ import subprocess
 import sys
 import tempfile
 import time
-import urllib.parse
 import urllib.request
 import uuid
 from datetime import datetime, timezone
@@ -171,10 +170,6 @@ def parse_listings(html):
         else:
             photo_url = rmls_photo_url(mls_id)
 
-        # Listing URL: Google search by address + MLS (RMLS CRPT2 tokens are session-bound and expire)
-        q = urllib.parse.quote(f"{address} MLS {mls_id}")
-        listing_url = f"https://www.google.com/search?q={q}"
-
         listings.append({
             "address": address,
             "mls": mls_id,
@@ -185,7 +180,6 @@ def parse_listings(html):
             "baths": baths,
             "sqft": sqft,
             "photoUrl": photo_url,
-            "listingUrl": listing_url,
         })
 
     return listings
