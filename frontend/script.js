@@ -226,12 +226,12 @@ function buildPopup(props) {
     html += '<ul style="list-style:none;font-size:12px;margin-bottom:6px;padding:0;">';
     for (const item of schema) {
       const val = props.checklist?.[item.key];
-      const checked = val === true ? 'checked' : '';
-      const disabled = isAdmin ? '' : 'disabled';
-      const onChange = isAdmin ? `onchange="popupToggleCheck('${props.id}','${item.key}',this.checked)"` : '';
-      html += `<li style="padding:2px 0;display:flex;align-items:center;gap:4px;">`;
-      html += `<input type="checkbox" ${checked} ${disabled} ${onChange} style="width:14px;height:14px;margin:0;accent-color:#89b4fa;${isAdmin ? 'cursor:pointer;' : ''}" />`;
-      html += `<span style="color:#a6adc8;">${esc(item.label)}</span></li>`;
+      // Tri-state: null/undefined = unset (?), true = yes (✓), false = no (✗)
+      const icon = val === true ? '\u2705' : val === false ? '\u274C' : '\u2754';
+      const onClick = isAdmin ? `onclick="popupCycleCheck('${props.id}','${item.key}')"` : '';
+      html += `<li style="padding:2px 0;display:flex;align-items:center;gap:6px;${isAdmin ? 'cursor:pointer;' : ''}" ${onClick}>`;
+      html += `<span style="font-size:14px;line-height:1;">${icon}</span>`;
+      html += `<span style="color:${val === true ? '#a6e3a1' : val === false ? '#f38ba8' : '#6c7086'};">${esc(item.label)}</span></li>`;
     }
     html += '</ul>';
   }
@@ -317,7 +317,7 @@ async function saveProperty(prop) {
 window.popupEdit = popupEdit;
 window.popupDelete = popupDelete;
 window.popupToggleStar = popupToggleStar;
-window.popupToggleCheck = popupToggleCheck;
+window.popupCycleCheck = popupCycleCheck;
 
 function popupEdit(id) {
   popup.close();
@@ -325,11 +325,13 @@ function popupEdit(id) {
   if (prop) editProperty(prop);
 }
 
-async function popupToggleCheck(id, key, checked) {
+async function popupCycleCheck(id, key) {
   const prop = data.properties.find(p => p.id === id);
   if (!prop) return;
   if (!prop.checklist) prop.checklist = {};
-  prop.checklist[key] = checked;
+  // Cycle: null/undefined → true → false → null
+  const cur = prop.checklist[key];
+  prop.checklist[key] = cur === null || cur === undefined ? true : cur === true ? false : null;
   try {
     const res = await fetch(`${CONFIG.apiUrl}/api/properties/${id}`, {
       method: 'PUT',
@@ -343,6 +345,8 @@ async function popupToggleCheck(id, key, checked) {
   } catch (err) {
     console.error('Checklist update error:', err.message);
   }
+  // Refresh popup content inline
+  popup.setOptions({ content: buildPopup(prop) });
   renderProperties();
 }
 
@@ -546,19 +550,34 @@ function renderChecklistForm(values) {
   for (const item of data.checklistSchema) {
     const div = document.createElement('div');
     div.className = 'checklist-item';
-    const checked = values[item.key] === true ? 'checked' : '';
-    div.innerHTML = `
-      <input type="checkbox" id="cl-${item.key}" data-key="${item.key}" ${checked} />
-      <label for="cl-${item.key}">${esc(item.label)}</label>
-    `;
+    const val = values[item.key];
+    const icon = val === true ? '\u2705' : val === false ? '\u274C' : '\u2754';
+    const btn = document.createElement('span');
+    btn.textContent = icon;
+    btn.dataset.key = item.key;
+    btn.dataset.state = val === true ? 'true' : val === false ? 'false' : 'null';
+    btn.style.cssText = 'font-size:16px;cursor:pointer;line-height:1;';
+    btn.addEventListener('click', () => {
+      const cur = btn.dataset.state;
+      const next = cur === 'null' ? 'true' : cur === 'true' ? 'false' : 'null';
+      btn.dataset.state = next;
+      btn.textContent = next === 'true' ? '\u2705' : next === 'false' ? '\u274C' : '\u2754';
+    });
+    const label = document.createElement('label');
+    label.textContent = item.label;
+    label.style.cursor = 'pointer';
+    label.addEventListener('click', () => btn.click());
+    div.appendChild(btn);
+    div.appendChild(label);
     container.appendChild(div);
   }
 }
 
 function readFormData() {
   const checklist = {};
-  document.querySelectorAll('#form-checklist input[type="checkbox"]').forEach(cb => {
-    checklist[cb.dataset.key] = cb.checked;
+  document.querySelectorAll('#form-checklist span[data-key]').forEach(btn => {
+    const s = btn.dataset.state;
+    checklist[btn.dataset.key] = s === 'true' ? true : s === 'false' ? false : null;
   });
 
   const existing = editingId ? data.properties.find(p => p.id === editingId) : null;
