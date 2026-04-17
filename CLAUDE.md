@@ -13,6 +13,12 @@ MSAL.js Microsoft login in the browser — same pattern as kill-me, investing, a
 - Unauthenticated users see the map (public) but no admin controls.
 - Local dev port 3003 — frontend on 3003, shared API on 3000.
 
+### Decentralized Microsoft app registration
+
+Unlike kill-me/investing/plant-agent (which still share infra-bootstrap's `romaine.life - Social Login` registration), house-hunt owns its own Azure AD app registration in `tofu/oauth.tf`. Redirect URIs, client ID, and lifecycle live with this repo. The shared API's `microsoft-routes.js` accepts an array of audiences, populated by enumerating every `*/microsoft_oauth_client_id` key in App Configuration plus the legacy shared `microsoft_oauth_client_id_plain` key. Each app's tofu writes its own client ID under its own prefix; no cross-repo coordination required to add or rotate apps.
+
+The deploy workflow fetches `MICROSOFT_CLIENT_ID` from App Configuration at deploy time (rather than reading a GitHub variable) so the tofu-managed value stays the source of truth.
+
 ## Routes Package (`packages/routes/`)
 
 Published as `@nelsong6/house-hunt-routes` to GitHub Packages. CRUD for properties stored in Azure Blob Storage (single `properties.json` blob, versioned). Receives `requireAuth`, `propertiesContainerClient`, and `getMapsToken` via dependency injection from the shared API. Auth is handled by the shared `msAuth` middleware — the routes package has no auth endpoints. Public endpoint `GET /api/properties` has no auth. `GET /maps/token` is also public (map must render for everyone) — returns a short-lived Azure AD token for Azure Maps, cached server-side with 60s buffer. All write endpoints require auth.

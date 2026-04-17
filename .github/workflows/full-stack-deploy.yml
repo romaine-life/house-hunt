@@ -31,9 +31,16 @@ jobs:
 
       - name: Generate Config
         run: |
+          # MICROSOFT_CLIENT_ID is owned by this repo's tofu (oauth.tf) and
+          # published to App Configuration. Fetched here so the source of truth
+          # is the tofu-managed value, not a stale GitHub variable.
+          MICROSOFT_CLIENT_ID=$(az appconfig kv show \
+            --name infra-appconfig \
+            --key househunt/microsoft_oauth_client_id \
+            --query value -o tsv)
           export API_URL="https://api.romaine.life/househunt"
           export MAPS_CLIENT_ID="${{ vars.MAPS_CLIENT_ID }}"
-          export MICROSOFT_CLIENT_ID="${{ vars.MICROSOFT_CLIENT_ID }}"
+          export MICROSOFT_CLIENT_ID
           chmod +x ./frontend/generate-config.sh
           ./frontend/generate-config.sh
 
