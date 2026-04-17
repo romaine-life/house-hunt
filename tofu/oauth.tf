@@ -7,7 +7,7 @@
 # tokens against the union of audiences.
 
 resource "azuread_application" "microsoft_login" {
-  display_name     = "house-hunt - Sign in with Microsoft"
+  display_name     = "house-hunt - Social Login"
   sign_in_audience = "AzureADandPersonalMicrosoftAccount"
 
   api {
