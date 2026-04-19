@@ -15,12 +15,28 @@ resource "azurerm_maps_account" "house_hunt" {
   cors {
     allowed_origins = [
       "https://househunt.romaine.life",
-      "http://localhost:3003",
+      "http://localhost:3000",
     ]
   }
 }
 
-# Grant shared API's managed identity read access to Azure Maps
+# Look up the shared managed identity (defined in infra-bootstrap) so the
+# AKS pod running this app (federated to infra-shared-identity via workload
+# identity) can mint Azure Maps tokens.
+data "azurerm_user_assigned_identity" "shared" {
+  name                = "infra-shared-identity"
+  resource_group_name = local.infra.resource_group_name
+}
+
+resource "azurerm_role_assignment" "shared_identity_maps_reader" {
+  scope                = azurerm_maps_account.house_hunt.id
+  role_definition_name = "Azure Maps Data Reader"
+  principal_id         = data.azurerm_user_assigned_identity.shared.principal_id
+}
+
+# Legacy: the retired shared api used its system-assigned identity for Maps.
+# Kept during the transition so tofu apply doesn't yank the role while the
+# shared api still runs. Remove when the shared api retires (infra-bootstrap#23).
 resource "azurerm_role_assignment" "shared_api_maps_reader" {
   scope                = azurerm_maps_account.house_hunt.id
   role_definition_name = "Azure Maps Data Reader"

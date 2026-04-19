@@ -67,7 +67,7 @@ function initMap() {
       clientId: CONFIG.mapsClientId,
       getToken: async (resolve, reject) => {
         try {
-          const res = await fetch(`${CONFIG.apiUrl}/maps/token`);
+          const res = await fetch(`/maps/token`);
           if (!res.ok) throw new Error(`Token fetch failed: ${res.status}`);
           const { token } = await res.json();
           resolve(token);
@@ -263,7 +263,7 @@ function fitMapToData() {
 // ── Data ───────────────────────────────────────────────────
 async function loadProperties() {
   try {
-    const res = await fetch(`${CONFIG.apiUrl}/api/properties`);
+    const res = await fetch(`/api/properties`);
     if (!res.ok) {
       console.warn('Failed to load properties:', res.status);
       return;
@@ -290,8 +290,8 @@ async function saveProperty(prop) {
   try {
     const method = isNew ? 'POST' : 'PUT';
     const url = isNew
-      ? `${CONFIG.apiUrl}/api/properties`
-      : `${CONFIG.apiUrl}/api/properties/${editingId}`;
+      ? `/api/properties`
+      : `/api/properties/${editingId}`;
 
     const res = await fetch(url, {
       method,
@@ -336,7 +336,7 @@ async function popupCycleCheck(id, key) {
   const cur = prop.checklist[key];
   prop.checklist[key] = cur === null || cur === undefined ? true : cur === true ? false : null;
   try {
-    const res = await fetch(`${CONFIG.apiUrl}/api/properties/${id}`, {
+    const res = await fetch(`/api/properties/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
       body: JSON.stringify({ property: prop, lastKnownVersion }),
@@ -358,7 +358,7 @@ async function popupToggleStar(id) {
   if (!prop) return;
   prop.starred = !prop.starred;
   try {
-    const res = await fetch(`${CONFIG.apiUrl}/api/properties/${id}`, {
+    const res = await fetch(`/api/properties/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
       body: JSON.stringify({ property: prop, lastKnownVersion }),
@@ -386,7 +386,7 @@ async function deleteProperty(id) {
   data.properties = data.properties.filter(p => p.id !== id);
 
   try {
-    const res = await fetch(`${CONFIG.apiUrl}/api/properties/${id}`, {
+    const res = await fetch(`/api/properties/${id}`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
       body: JSON.stringify({ lastKnownVersion }),
@@ -613,7 +613,7 @@ async function geocodeAddress(address) {
   const url = `https://atlas.microsoft.com/search/address/json?api-version=1.0&query=${encodeURIComponent(address)}`;
   try {
     // Use the map's auth to make the request
-    const tokenRes = await fetch(`${CONFIG.apiUrl}/maps/token`);
+    const tokenRes = await fetch(`/maps/token`);
     const { token } = await tokenRes.json();
     const res = await fetch(url, {
       headers: {
@@ -775,7 +775,7 @@ async function bulkDeleteProperties() {
   renderProperties();
 
   try {
-    const res = await fetch(`${CONFIG.apiUrl}/api/properties`, {
+    const res = await fetch(`/api/properties`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
       body: JSON.stringify({ ids, lastKnownVersion }),
@@ -884,7 +884,7 @@ function bindEvents() {
     btn.textContent = '...';
     btn.disabled = true;
     try {
-      const res = await fetch(`${CONFIG.apiUrl}/api/rmls-lookup`, {
+      const res = await fetch(`/api/rmls-lookup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: rmlsUrl }),

@@ -13,7 +13,3 @@ output "storage_endpoint" {
 output "maps_client_id" {
   value = azurerm_maps_account.house_hunt.x_ms_client_id
 }
-
-output "static_web_app_name" {
-  value = azurerm_static_web_app.frontend.name
-}

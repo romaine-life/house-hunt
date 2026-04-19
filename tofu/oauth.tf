@@ -17,10 +17,8 @@ resource "azuread_application" "microsoft_login" {
   single_page_application {
     redirect_uris = [
       "https://househunt.romaine.life/",
-      # SWA bypass URL (auto-generated, stable)
-      "https://red-moss-058905f1e.6.azurestaticapps.net/",
-      # Local dev
-      "http://localhost:3003/",
+      # Local dev — backend serves frontend + API on same origin at :3000.
+      "http://localhost:3000/",
     ]
   }
 }

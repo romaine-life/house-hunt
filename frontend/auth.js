@@ -42,7 +42,7 @@ export async function initAuth() {
 }
 
 async function handleMsalResponse(response) {
-  const res = await fetch(`${CONFIG.apiUrl}/auth/microsoft/login`, {
+  const res = await fetch('/auth/microsoft/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ credential: response.idToken }),

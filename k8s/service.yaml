@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: house-hunt
+  namespace: house-hunt
+  labels:
+    app: house-hunt
+spec:
+  type: ClusterIP
+  selector:
+    app: house-hunt
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP

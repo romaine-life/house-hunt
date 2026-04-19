@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: house-hunt
+  namespace: house-hunt
+  labels:
+    app: house-hunt
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: house-hunt
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: house-hunt
+        azure.workload.identity/use: "true"
+    spec:
+      serviceAccountName: infra-shared
+      containers:
+        - name: house-hunt
+          image: romainecr.azurecr.io/house-hunt:placeholder
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3000
+          env:
+            - name: PORT
+              value: "3000"
+            - name: AZURE_APP_CONFIG_ENDPOINT
+              value: https://infra-appconfig.azconfig.io
+            - name: KEY_VAULT_URL
+              value: https://romaine-kv.vault.azure.net/
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 5
+            failureThreshold: 20
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 30
+            failureThreshold: 3
