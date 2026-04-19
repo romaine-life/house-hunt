@@ -2,12 +2,13 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: house-hunt
 resources:
-  - serviceaccount.yaml
-  - deployment.yaml
-  - service.yaml
-  - certificate.yaml
-  - xlistenerset.yaml
-  - httproute.yaml
+- serviceaccount.yaml
+- deployment.yaml
+- service.yaml
+- certificate.yaml
+- xlistenerset.yaml
+- httproute.yaml
 images:
-  - name: romainecr.azurecr.io/house-hunt
-    newTag: placeholder
+- name: romainecr.azurecr.io/house-hunt
+  newName: romainecr.azurecr.io/house-hunt
+  newTag: 2c8689d
