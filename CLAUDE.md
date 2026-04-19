@@ -19,9 +19,9 @@ Unlike kill-me/investing/plant-agent (which still share infra-bootstrap's `romai
 
 The deploy workflow fetches `MICROSOFT_CLIENT_ID` from App Configuration at deploy time (rather than reading a GitHub variable) so the tofu-managed value stays the source of truth.
 
-## Routes Package (`packages/routes/`)
+## Routes (`backend/routes/`)
 
-Published as `@nelsong6/house-hunt-routes` to GitHub Packages. CRUD for properties stored in Azure Blob Storage (single `properties.json` blob, versioned). Receives `requireAuth`, `propertiesContainerClient`, and `getMapsToken` via dependency injection from the shared API. Auth is handled by the shared `msAuth` middleware — the routes package has no auth endpoints. Public endpoint `GET /api/properties` has no auth. `GET /maps/token` is also public (map must render for everyone) — returns a short-lived Azure AD token for Azure Maps, cached server-side with 60s buffer. All write endpoints require auth.
+`createHouseHuntRoutes({ requireAuth, propertiesContainerClient, getMapsToken })` returns an Express Router mounted at `/api/*`. CRUD for properties stored in Azure Blob Storage (single `properties.json` blob, versioned). Public endpoint `GET /api/properties` has no auth. `GET /maps/token` is also public (map must render for everyone) — returns a short-lived Azure AD token for Azure Maps, cached server-side with 60s buffer. All write endpoints require auth via this backend's own `microsoft-routes.js`.
 
 ## Storage
 
@@ -95,10 +95,6 @@ Deploy workflow uses `Azure/static-web-apps-deploy@v1` with SWA deployment token
 - `DELETE /api/properties` — admin, bulk delete properties (body: `{ ids, lastKnownVersion }`)
 - `PUT /api/checklist-schema` — admin, update checklist items
 - `POST /auth/microsoft/login` — shared msAuth (verify Microsoft ID token, issue JWT)
-
-## Publish Pipeline
-
-Triggers on push to `packages/routes/**`. Auto-bumps patch version, publishes to GitHub Packages, dispatches `dependency-updated` to API repo.
 
 ## Change Log
 

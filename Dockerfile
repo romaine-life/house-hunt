@@ -3,12 +3,7 @@ FROM node:20-alpine
 WORKDIR /app
 
 COPY backend/package*.json backend/
-ARG NPM_TOKEN
-RUN cd backend && \
-    echo "//npm.pkg.github.com/:_authToken=${NPM_TOKEN}" > .npmrc && \
-    echo "@nelsong6:registry=https://npm.pkg.github.com" >> .npmrc && \
-    npm install --omit=dev && \
-    rm -f .npmrc
+RUN cd backend && npm install --omit=dev
 
 COPY frontend/ frontend/
 COPY backend/ backend/
