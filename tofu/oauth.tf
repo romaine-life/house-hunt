@@ -6,9 +6,17 @@
 # `*/microsoft_oauth_client_id` value from App Configuration and validates
 # tokens against the union of audiences.
 
+data "azuread_client_config" "current" {}
+
 resource "azuread_application" "microsoft_login" {
   display_name     = "house-hunt - Social Login"
   sign_in_audience = "AzureADandPersonalMicrosoftAccount"
+
+  # Tofu's executing SP must be an owner to update this app (redirect URIs
+  # etc.) — `Application.ReadWrite.OwnedBy` only works for owned apps. The
+  # app was historically created without an owner entry; fixed manually once
+  # and declared here so future apply runs re-assert it.
+  owners = [data.azuread_client_config.current.object_id]
 
   api {
     requested_access_token_version = 2
