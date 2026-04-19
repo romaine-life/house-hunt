@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { CosmosClient } from '@azure/cosmos';
 import { DefaultAzureCredential } from '@azure/identity';
 import { BlobServiceClient } from '@azure/storage-blob';
-import { createHouseHuntRoutes } from '@nelsong6/house-hunt-routes';
+import { createHouseHuntRoutes } from './routes/index.js';
 import { createRequireAuth } from './auth.js';
 import { createMicrosoftRoutes } from './microsoft-routes.js';
 import { fetchConfig } from './config.js';

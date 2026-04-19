@@ -15,7 +15,6 @@ on:
 permissions:
   id-token: write
   contents: write
-  packages: read
 
 concurrency:
   group: build-and-deploy
@@ -62,7 +61,7 @@ jobs:
         run: |
           TAG="${GITHUB_SHA::7}"
           IMAGE="romainecr.azurecr.io/house-hunt:${TAG}"
-          docker build --build-arg NPM_TOKEN=${{ secrets.GITHUB_TOKEN }} -t "$IMAGE" .
+          docker build -t "$IMAGE" .
           docker push "$IMAGE"
           echo "TAG=${TAG}" >> $GITHUB_ENV
 
