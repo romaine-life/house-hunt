@@ -24,7 +24,7 @@ resource "azuread_application" "microsoft_login" {
 
   single_page_application {
     redirect_uris = [
-      "https://househunt.romaine.life/",
+      "https://${local.front_app_dns_name}.${local.infra.dns_zone_name}/",
       # Local dev — backend serves frontend + API on same origin at :3000.
       "http://localhost:3000/",
     ]
@@ -35,6 +35,6 @@ resource "azuread_application" "microsoft_login" {
 # alongside other apps' client IDs by listing keys matching `*/microsoft_oauth_client_id`.
 resource "azurerm_app_configuration_key" "microsoft_oauth_client_id" {
   configuration_store_id = local.infra.azure_app_config_resource_id
-  key                    = "househunt/microsoft_oauth_client_id"
+  key                    = "${local.front_app_dns_name}/microsoft_oauth_client_id"
   value                  = azuread_application.microsoft_login.client_id
 }
