@@ -11,4 +11,4 @@ resources:
 images:
 - name: romainecr.azurecr.io/house-hunt
   newName: romainecr.azurecr.io/house-hunt
-  newTag: daafaa9
+  newTag: 6b3c8ec
