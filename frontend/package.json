@@ -1,7 +1,0 @@
-{
-  "name": "house-hunt-frontend",
-  "private": true,
-  "devDependencies": {
-    "serve": "^14.2.0"
-  }
-}
