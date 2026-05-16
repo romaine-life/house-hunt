@@ -2,4 +2,4 @@
 # push to main (via `sed` on this file).
 image:
   repository: romainecr.azurecr.io/house-hunt
-  tag: da342a8
+  tag: c37d949
