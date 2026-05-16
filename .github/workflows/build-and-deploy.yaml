@@ -9,7 +9,7 @@ on:
       - Dockerfile
       - .dockerignore
       - k8s/**
-      - .github/workflows/build-and-deploy.yml
+      - .github/workflows/build-and-deploy.yaml
   workflow_dispatch:
 
 permissions:
@@ -38,19 +38,16 @@ jobs:
           subscription-id: ${{ vars.ARM_SUBSCRIPTION_ID }}
 
       - name: Generate frontend/config.js
-        # MICROSOFT_CLIENT_ID and MAPS_CLIENT_ID are owned by this repo's tofu
-        # and published to App Configuration. Fetched here so the source of
-        # truth is the tofu-managed values.
+        # MAPS_CLIENT_ID is owned by this repo's tofu and published to App
+        # Configuration. Fetched here so the source of truth is the
+        # tofu-managed value. (Microsoft sign-in is delegated upstream to
+        # auth.romaine.life; no OAuth client ID in the bundle.)
         run: |
-          MICROSOFT_CLIENT_ID=$(az appconfig kv show \
-            --name infra-appconfig \
-            --key househunt/microsoft_oauth_client_id \
-            --query value -o tsv)
           MAPS_CLIENT_ID=$(az appconfig kv show \
             --name infra-appconfig \
             --key househunt/maps_client_id \
             --query value -o tsv)
-          export MICROSOFT_CLIENT_ID MAPS_CLIENT_ID
+          export MAPS_CLIENT_ID
           chmod +x ./frontend/generate-config.sh
           ./frontend/generate-config.sh
 

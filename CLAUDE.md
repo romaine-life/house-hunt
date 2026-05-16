@@ -1,27 +1,23 @@
 # house-hunt
 
-Map-based property tracker at househunt.romaine.life. Public visitors see an Azure Maps dark-themed map with pins. Nelson logs in via Microsoft MSAL.js to manage properties.
+Map-based property tracker at househunt.romaine.life. Public visitors see an Azure Maps dark-themed map with pins. Admins sign in via auth.romaine.life to manage properties.
 
 ## Auth
 
-MSAL.js Microsoft login in the browser — same pattern as kill-me, investing, and plant-agent. Shared `msAuth` middleware mounted at `/househunt` on the API handles token verification and JWT issuance.
+Microsoft sign-in is delegated upstream to **auth.romaine.life** — the central identity service that owns the user table and the role claim (`admin`/`user`/`pending`). No per-app Entra app registration, no MSAL in the browser. Admins promote users via [auth.romaine.life/admin](https://auth.romaine.life/admin).
 
-- Frontend uses MSAL.js redirect flow with `@azure/msal-browser` CDN.
-- Microsoft ID token sent to `POST /househunt/auth/microsoft/login`, verified via JWKS, returns 7-day JWT.
-- Admin role: `nelson-devops-project@outlook.com`. All others: viewer.
-- Admin API calls use `Authorization: Bearer <token>` header.
-- Unauthenticated users see the map (public) but no admin controls.
-- Local dev port 3003 — frontend on 3003, shared API on 3000.
+Flow:
+1. Anonymous visitors see the map. Sign-in button kicks off `auth.romaine.life/sign-in/microsoft?callbackURL=...`.
+2. After Microsoft completes upstream, the `.romaine.life` session cookie lands and the browser bounces back here.
+3. `initAuth()` ([frontend/auth.js](frontend/auth.js)) fetches an RS256 JWT from `auth.romaine.life/api/auth/token` (cookie auto-attached cross-origin) and POSTs it to `/api/auth/exchange`. Backend verifies the upstream JWT against the auth.romaine.life JWKS, checks `role ∈ {admin, user}` (`pending` → 403), and mints a house-hunt-signed HS256 session JWT.
+4. Frontend stores the local JWT in localStorage and sends it as `Authorization: Bearer` on writes. Backend's `requireAuth` middleware verifies it; admin gating is `req.user.role === 'admin'`.
+5. Sign-out clears both the local JWT and the auth.romaine.life session cookie.
 
-### Decentralized Microsoft app registration
-
-Unlike kill-me/investing/plant-agent (which still share infra-bootstrap's `romaine.life - Social Login` registration), house-hunt owns its own Azure AD app registration in `tofu/oauth.tf`. Redirect URIs, client ID, and lifecycle live with this repo. The shared API's `microsoft-routes.js` accepts an array of audiences, populated by enumerating every `*/microsoft_oauth_client_id` key in App Configuration plus the legacy shared `microsoft_oauth_client_id_plain` key. Each app's tofu writes its own client ID under its own prefix; no cross-repo coordination required to add or rotate apps.
-
-The deploy workflow fetches `MICROSOFT_CLIENT_ID` from App Configuration at deploy time (rather than reading a GitHub variable) so the tofu-managed value stays the source of truth.
+Local dev: backend on `:3000` serves the static frontend; same-origin so no CORS dance.
 
 ## Routes (`backend/routes/`)
 
-`createHouseHuntRoutes({ requireAuth, propertiesContainerClient, getMapsToken })` returns an Express Router mounted at `/api/*`. CRUD for properties stored in Azure Blob Storage (single `properties.json` blob, versioned). Public endpoint `GET /api/properties` has no auth. `GET /maps/token` is also public (map must render for everyone) — returns a short-lived Azure AD token for Azure Maps, cached server-side with 60s buffer. All write endpoints require auth via this backend's own `microsoft-routes.js`.
+`createHouseHuntRoutes({ requireAuth, propertiesContainerClient, getMapsToken })` returns an Express Router mounted at `/api/*`. CRUD for properties stored in Azure Blob Storage (single `properties.json` blob, versioned). Public endpoint `GET /api/properties` has no auth. `GET /maps/token` is also public (map must render for everyone) — returns a short-lived Azure AD token for Azure Maps, cached server-side with 60s buffer. All write endpoints require auth via the [backend/auth.js](backend/auth.js) middleware (verifies the local HS256 JWT minted by `/api/auth/exchange`).
 
 ## Storage
 
@@ -75,7 +71,7 @@ Static HTML + vanilla JS + Azure Maps SDK (CDN). No build step. Served from the 
 
 Map popup features: clickable Google Maps address link, MLS# links to Google search, interactive checklist checkboxes (admin-toggleable, disabled for viewers), star/favorite toggle, Edit and Delete buttons for admins. Clicking empty map area dismisses popup. Sidebar has star filter toggle to show only starred properties. Bulk select + delete: admin toggle button or Shift-hold enters selection mode (disables map panning, crosshair cursor), click-drag draws rectangle to select pins inside it, click individual pins to toggle. Selected pins render with white outline via `pin-selected-{status}` sprites. Sidebar shows checkboxes on cards and selection bar with count/All/None/Delete buttons. Escape clears selection.
 
-Deploy: push to main → `.github/workflows/build-and-deploy.yml` builds the Docker image (SHA tag), pushes to ACR, `kustomize edit set image` in `k8s/kustomization.yaml`, commits back with `[skip ci]`. ArgoCD reconciles the tag change. `MAPS_CLIENT_ID` and `MICROSOFT_CLIENT_ID` come from App Configuration at build time (no GitHub variables). HTTPRoute in `k8s/httproute.yaml` attaches `househunt.romaine.life` to the shared Envoy Gateway; DNS CNAME is auto-managed by ExternalDNS watching the route.
+Deploy: push to main → `.github/workflows/build-and-deploy.yaml` builds the Docker image (SHA tag), pushes to ACR, sed-bumps `k8s/values.yaml`, commits back with `[skip ci]`. ArgoCD reconciles the tag change. `MAPS_CLIENT_ID` comes from App Configuration at build time (no GitHub variable). HTTPRoute in `k8s/templates/httproute.yaml` attaches `househunt.romaine.life` to the shared Envoy Gateway; DNS CNAME is auto-managed by ExternalDNS watching the route.
 
 ## Import Scripts (`scripts/`)
 
@@ -94,7 +90,10 @@ Deploy: push to main → `.github/workflows/build-and-deploy.yml` builds the Doc
 - `DELETE /api/properties/:id` — admin, delete property
 - `DELETE /api/properties` — admin, bulk delete properties (body: `{ ids, lastKnownVersion }`)
 - `PUT /api/checklist-schema` — admin, update checklist items
-- `POST /auth/microsoft/login` — shared msAuth (verify Microsoft ID token, issue JWT)
+- `POST /api/auth/exchange` — exchange an auth.romaine.life JWT for a local session JWT
+- `GET /api/auth/me` — return the current authenticated user
+- `POST /api/auth/logout` — clear the auth_token cookie
+- `GET /api/config` — return `{auth_url}` for the frontend's auth bootstrap
 
 ## Change Log
 

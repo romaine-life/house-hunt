@@ -1,7 +1,6 @@
 // Per-app backend for househunt.romaine.life. Serves the static frontend,
-// the house-hunt route package under /*, and Microsoft OAuth under /auth/*
-// on the same origin. Replaces the shared `api` mount at /househunt — this
-// app now owns its own container on AKS.
+// the house-hunt route package under /*, and the auth.romaine.life
+// delegation exchange under /api/auth/* on the same origin.
 import 'dotenv/config';
 import express from 'express';
 import helmet from 'helmet';
@@ -9,12 +8,11 @@ import morgan from 'morgan';
 import cors from 'cors';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CosmosClient } from '@azure/cosmos';
 import { DefaultAzureCredential } from '@azure/identity';
 import { BlobServiceClient } from '@azure/storage-blob';
 import { createHouseHuntRoutes } from './routes/index.js';
 import { createRequireAuth } from './auth.js';
-import { createMicrosoftRoutes } from './microsoft-routes.js';
+import { createAuthRoutes } from './auth-routes.js';
 import { fetchConfig } from './config.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -44,19 +42,11 @@ async function start() {
 
   const credential = new DefaultAzureCredential();
 
-  // Account records (for MS OIDC → JWT exchange) still live in the shared
-  // WorkoutTrackerDB/workouts container. Property data lives in Blob storage.
-  const cosmosClient = new CosmosClient({
-    endpoint: config.cosmosDbEndpoint,
-    aadCredentials: credential,
-  });
-  const accountContainer = cosmosClient.database('WorkoutTrackerDB').container('workouts');
-
   const blobServiceClient = new BlobServiceClient(config.storageAccountEndpoint, credential);
   const propertiesContainerClient = blobServiceClient.getContainerClient('properties');
 
-  // Azure Maps token callback — workload identity → infra-shared-identity →
-  // "Azure Maps Data Reader" on house-hunt-maps.
+  // Azure Maps token callback — workload identity →
+  // house-hunt-identity → "Azure Maps Data Reader" on house-hunt-maps.
   const MAPS_SCOPE = 'https://atlas.microsoft.com/.default';
   const getMapsToken = async () => {
     const token = await credential.getToken(MAPS_SCOPE);
@@ -64,13 +54,8 @@ async function start() {
   };
 
   const requireAuth = createRequireAuth({ jwtSecret: config.jwtSigningSecret });
-  const msAuth = createMicrosoftRoutes({
-    jwtSecret: config.jwtSigningSecret,
-    microsoftClientIds: config.microsoftClientIds,
-    accountContainer,
-  });
 
-  app.use(msAuth);
+  app.use(createAuthRoutes({ jwtSecret: config.jwtSigningSecret, requireAuth }));
   app.use(createHouseHuntRoutes({
     requireAuth,
     propertiesContainerClient,
