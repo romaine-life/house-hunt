@@ -24,7 +24,7 @@ spec:
       serviceAccountName: infra-shared
       containers:
         - name: house-hunt
-          image: romainecr.azurecr.io/house-hunt:placeholder
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
